@@ -4,6 +4,7 @@ build
 .project
 .settings/
 .classpath
+.vscode/
 nbactions.xml
 nb-configuration.xml
 nbproject/
