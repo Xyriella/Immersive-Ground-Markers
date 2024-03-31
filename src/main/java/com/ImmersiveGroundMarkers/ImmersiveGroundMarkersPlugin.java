@@ -9,21 +9,17 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
-
-import com.google.common.util.concurrent.Runnables;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.google.inject.Provides;
 
 import com.google.common.base.Strings;
 import javax.inject.Inject;
-import javax.swing.SwingUtilities;
 
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
+import net.runelite.api.GameState;
 import net.runelite.api.KeyCode;
 import net.runelite.api.MenuAction;
 import net.runelite.api.MenuEntry;
@@ -37,11 +33,9 @@ import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
-import net.runelite.client.game.chatbox.ChatboxPanelManager;
+import net.runelite.client.events.ProfileChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
-import net.runelite.client.ui.components.colorpicker.RuneliteColorPicker;
-import net.runelite.client.util.ColorUtil;
 
 @Slf4j
 @PluginDescriptor(
@@ -76,20 +70,30 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	protected void startUp() throws Exception
 	{
 		loadMarkers();
-		log.info("Prop Markers loaded");
 	}
 
 	@Override
 	protected void shutDown() throws Exception
 	{
 		removeObjects();
-		log.info("Prop markers unloaded");
+	}
+
+	@Subscribe
+	public void onProfileChanged(ProfileChanged profileChanged)
+	{
+		loadMarkers();
 	}
 
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged gameStateChanged)
 	{
-		
+		if (gameStateChanged.getGameState() != GameState.LOGGED_IN)
+		{
+			return;
+		}
+
+		// map region has just been updated
+		loadMarkers();
 	}
 
 	@Provides
@@ -128,7 +132,6 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 		for(ImmersiveMarker marker : markers){
 			int modelId = marker.getModelId();
 			WorldPoint worldPoint = marker.getWorldPoint();
-
 			RuneLiteObject rlObj = client.createRuneLiteObject();
 			Model model = client.loadModel(modelId);
 			if(model == null){
@@ -176,34 +179,13 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 
 	private void remodelTile(ImmersiveMarker tile, int modelId){
 
-		RuneLiteObject tempObject = objects.get(tile.getWorldPoint());
-
+		int index = markers.indexOf(tile);
 		tile.setModelId(modelId);
+		markers.set(index, tile);
 		saveMarkers(tile.getWorldPoint().getRegionID(), markers);
 		loadMarkers();
 
-		/*Model model = client.loadModel(modelId);
-		if(model == null){
-			final Instant loadTimeOutInstant = Instant.now().plus(Duration.ofSeconds((5)));
-			clientThread.invoke(() -> {
-				if(Instant.now().isAfter(loadTimeOutInstant)){
-					return true;
-				}
-				Model reloadedModel = client.loadModel(modelId);
 
-				if(reloadedModel == null){
-					return false;
-				}
-				tempObject.setModel(reloadedModel);
-				tile.setModelId(modelId);
-				saveMarkers(tile.getWorldPoint().getRegionID(), markers);
-				return true;
-			});
-		}else{
-			tempObject.setModel(model);
-			tile.setModelId(modelId);
-			saveMarkers(tile.getWorldPoint().getRegionID(), markers);
-		}*/
 	}
 
 	private void markTile(LocalPoint localPoint, int modelId)
