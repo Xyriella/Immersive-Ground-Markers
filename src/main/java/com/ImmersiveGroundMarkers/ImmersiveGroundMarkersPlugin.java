@@ -9,7 +9,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -39,7 +38,7 @@ import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ProfileChanged;
-import net.runelite.client.game.chatbox.ChatboxPanelManager;
+//import net.runelite.client.game.chatbox.ChatboxPanelManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 
@@ -61,11 +60,13 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	@Inject
 	private ConfigManager configManager;
 
-	@Inject
-	private ChatboxPanelManager chatboxPanelManager;
+	//@Inject
+	//private ChatboxPanelManager chatboxPanelManager;
 
 	@Inject
 	private Gson gson;
+
+	private int latestModel = -1;
 
 	Random rnd = new Random();
 
@@ -231,6 +232,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 		}
 		tile.setModelId(modelId);
 		markers.set(index, tile);
+		latestModel = modelId;
 		saveMarkers(tile.getWorldPoint().getRegionID(), markers);
 		loadMarkers();
 	}
@@ -330,8 +332,15 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 				{
 					Tile target = client.getSelectedSceneTile();
 					if (target != null)
-					{
-						markTile(target.getLocalLocation(), config.markerPack().ids[0]);
+					{	
+						int modelId = config.markerPack().ids[0];
+						for(int i : config.markerPack().ids){
+							if( i == latestModel ){
+								modelId = i;
+								break;
+							}
+						}
+						markTile(target.getLocalLocation(), modelId);
 					}
 				});
 

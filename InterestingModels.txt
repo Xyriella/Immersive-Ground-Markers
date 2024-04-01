@@ -40,7 +40,7 @@ https://runemonk.com/tools/entityviewer/
 2480/3062 - Star small
 2529 - Pickaxe
 2544 - Axe
-2674 - Bones
+2674/222 - Bones
 2676 - Broken glass
 2711/3473/5049 - Arrow
 2604/2754 - Sword
@@ -68,3 +68,7 @@ https://runemonk.com/tools/entityviewer/
 6398-6401 - Smoke Swirls
 7130-7137 - Map Symbols
 7669 - Ban Symbol
+49899 - Fox Trap
+47365 - Bear Trap
+21371 - Spike Trap
+20810 - Sand Trap
