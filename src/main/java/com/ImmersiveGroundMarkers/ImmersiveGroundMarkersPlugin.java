@@ -32,7 +32,7 @@ import net.runelite.api.Tile;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.GameStateChanged;
-//import net.runelite.api.events.GameTick;
+import net.runelite.api.events.GameTick;
 import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
@@ -66,6 +66,8 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	@Inject
 	private Gson gson;
 
+	private int lastPlane = -1;
+
 	private int latestModel = -1;
 
 	Random rnd = new Random();
@@ -95,9 +97,19 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 		loadMarkers();
 	}
 
-	/*@Subscribe //Code for searching models
+	@Subscribe 
 	public void onGameTick(GameTick event)
 	{
+
+		//TODO: Find a way to do as it's own subscribe. Similar to GameStateChanged?
+		int newPlane = client.getPlane();
+		if(newPlane != lastPlane){
+			loadMarkers();
+			lastPlane = newPlane;
+		}
+
+		//Code for searching models
+		/*
 		final boolean shiftPressed = client.isKeyPressed(KeyCode.KC_SHIFT);
 		final boolean ctrlPressed = client.isKeyPressed(KeyCode.KC_CONTROL);
 		if(shiftPressed || ctrlPressed){
@@ -118,7 +130,8 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 			ImmersiveMarker mk = markers.get(index);
 			clientThread.invoke(() -> {remodelTile(mk, mk.getModelId()+ (shiftPressed ? 1 : -1));});
 		}
-	}*/
+		*/
+	}
 
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged gameStateChanged)
