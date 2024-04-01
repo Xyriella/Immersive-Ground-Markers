@@ -331,7 +331,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 					Tile target = client.getSelectedSceneTile();
 					if (target != null)
 					{
-						markTile(target.getLocalLocation(), config.ModelID1());
+						markTile(target.getLocalLocation(), config.markerPack().ids[0]);
 					}
 				});
 
@@ -344,32 +344,17 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 					.setTarget("Tile")
 					.setType(MenuAction.RUNELITE_SUBMENU);
 
-				client.createMenuEntry(-3)
-					.setOption(config.ModelName1())
-					.setType(MenuAction.RUNELITE)
-					.setParent(propSelect)
-					.onClick(e -> remodelTile(existing, config.ModelID1()));
-				client.createMenuEntry(-3)
-					.setOption(config.ModelName2())
-					.setType(MenuAction.RUNELITE)
-					.setParent(propSelect)
-					.onClick(e -> remodelTile(existing, config.ModelID2()));
-				client.createMenuEntry(-3)
-					.setOption(config.ModelName3())
-					.setType(MenuAction.RUNELITE)
-					.setParent(propSelect)
-					.onClick(e -> remodelTile(existing, config.ModelID3()));
-				client.createMenuEntry(-3)
-					.setOption(config.ModelName4())
-					.setType(MenuAction.RUNELITE)
-					.setParent(propSelect)
-					.onClick(e -> remodelTile(existing, config.ModelID4()));
+				for(int i = 0; i < config.markerPack().ids.length; i++){
+					final int idIndex = i;
 					client.createMenuEntry(-3)
-						.setOption(config.ModelName5())
-						.setType(MenuAction.RUNELITE)
-						.setParent(propSelect)
-						.onClick(e -> remodelTile(existing, config.ModelID5()));
-				client.createMenuEntry(-2)
+					.setOption(config.markerPack().names[i])
+					.setType(MenuAction.RUNELITE)
+					.setParent(propSelect)
+					.onClick(e -> remodelTile(existing, config.markerPack().ids[idIndex]));
+				}
+
+				//Manual ID entry, hidden for release
+				/*client.createMenuEntry(-2)
 				.setOption("Other")
 				.setType(MenuAction.RUNELITE)
 				.setParent(propSelect)
@@ -382,7 +367,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 						int newModelId = Integer.parseInt(input);
 						clientThread.invoke(() -> {remodelTile(existing, newModelId);});
 					}).build();
-				});
+				});*/
 			}
 		}
 	}
