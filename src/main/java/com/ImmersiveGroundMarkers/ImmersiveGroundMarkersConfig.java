@@ -8,6 +8,24 @@ import net.runelite.client.config.ConfigItem;
 public interface ImmersiveGroundMarkersConfig extends Config
 {
 
+	enum OrientationMethod {
+        RANDOM,
+        MATCH_PLAYER,
+        NORTH,
+        SOUTH,
+        EAST,
+        WEST;
+	}
+
+	@ConfigItem(
+		keyName = "markerOrientation",
+		name = "Default Marker Orientation",
+		description = "How to set the orientation of the marker when marking a new tile"
+	)
+	default OrientationMethod markerOrientation(){
+		return OrientationMethod.RANDOM;
+	}
+
 	@ConfigItem(
 		keyName = "ModelName1",
 		name = "1st Model Name",
@@ -15,7 +33,7 @@ public interface ImmersiveGroundMarkersConfig extends Config
 	)
 	default String ModelName1()
 	{
-		return "Skull";
+		return "Arrow";
 	}
 
 	@ConfigItem(
@@ -25,7 +43,7 @@ public interface ImmersiveGroundMarkersConfig extends Config
 	)
 	default int ModelID1()
 	{
-		return 1234;
+		return 5125;
 	}
 
 	@ConfigItem(
@@ -35,7 +53,7 @@ public interface ImmersiveGroundMarkersConfig extends Config
 	)
 	default String ModelName2()
 	{
-		return "Rocks";
+		return "Cross";
 	}
 
 	@ConfigItem(
@@ -45,7 +63,7 @@ public interface ImmersiveGroundMarkersConfig extends Config
 	)
 	default int ModelID2()
 	{
-		return 4321;
+		return 5139;
 	}
 
 	@ConfigItem(
@@ -55,7 +73,7 @@ public interface ImmersiveGroundMarkersConfig extends Config
 	)
 	default String ModelName3()
 	{
-		return "Arrow";
+		return "Skull";
 	}
 
 	@ConfigItem(
@@ -65,7 +83,7 @@ public interface ImmersiveGroundMarkersConfig extends Config
 	)
 	default int ModelID3()
 	{
-		return 1000;
+		return 2388;
 	}
 
 	@ConfigItem(
@@ -75,7 +93,7 @@ public interface ImmersiveGroundMarkersConfig extends Config
 	)
 	default String ModelName4()
 	{
-		return "Star";
+		return "Shadow";
 	}
 
 	@ConfigItem(
@@ -85,6 +103,27 @@ public interface ImmersiveGroundMarkersConfig extends Config
 	)
 	default int ModelID4()
 	{
-		return 4242;
+		return 5077;
 	}
+
+	@ConfigItem(
+		keyName = "ModelName5",
+		name = "5th Model Name",
+		description = "Readable name for 5th model"
+	)
+	default String ModelName5()
+	{
+		return "Circle";
+	}
+
+	@ConfigItem(
+		keyName = "ModelID5",
+		name = "5th Model ID",
+		description = "Model ID for 5th model"
+	)
+	default int ModelID5()
+	{
+		return 4240;
+	}
+
 }

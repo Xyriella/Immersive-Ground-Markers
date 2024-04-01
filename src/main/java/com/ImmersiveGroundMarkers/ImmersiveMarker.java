@@ -7,9 +7,10 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(exclude = {"id"})
 public class ImmersiveMarker{
 
-    public ImmersiveMarker(int modelId, WorldPoint worldPoint){
+    public ImmersiveMarker(int modelId, WorldPoint worldPoint, int orientation){
         this.id = modelId;
         this.worldPoint = worldPoint;
+        this.orientation = orientation;
     }
 
     public WorldPoint getWorldPoint(){
@@ -20,10 +21,15 @@ public class ImmersiveMarker{
         return id;
     }
 
+    public int getOrientation(){
+        return orientation;
+    }
+
     public void setModelId(int modelId){
         this.id = modelId;
     }
 
     private WorldPoint worldPoint;
     private int id;
+    private int orientation;
 }

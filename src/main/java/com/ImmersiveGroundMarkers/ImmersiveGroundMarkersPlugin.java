@@ -9,11 +9,15 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.google.inject.Provides;
-
+import com.ImmersiveGroundMarkers.ImmersiveGroundMarkersConfig.OrientationMethod;
 import com.google.common.base.Strings;
 import javax.inject.Inject;
 
@@ -29,11 +33,13 @@ import net.runelite.api.Tile;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.GameStateChanged;
+//import net.runelite.api.events.GameTick;
 import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ProfileChanged;
+import net.runelite.client.game.chatbox.ChatboxPanelManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 
@@ -55,9 +61,13 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	@Inject
 	private ConfigManager configManager;
 
+	@Inject
+	private ChatboxPanelManager chatboxPanelManager;
 
 	@Inject
 	private Gson gson;
+
+	Random rnd = new Random();
 
 	private static final String CONFIG_GROUP = "immersiveGroundMarkers";
 	private static final String REGION_PREFIX = "imregion_";
@@ -83,6 +93,31 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	{
 		loadMarkers();
 	}
+
+	/*@Subscribe //Code for searching models
+	public void onGameTick(GameTick event)
+	{
+		final boolean shiftPressed = client.isKeyPressed(KeyCode.KC_SHIFT);
+		final boolean ctrlPressed = client.isKeyPressed(KeyCode.KC_CONTROL);
+		if(shiftPressed || ctrlPressed){
+			WorldPoint wp = client.getLocalPlayer().getWorldLocation();
+			AtomicInteger counter = new AtomicInteger(-1);
+			int index = markers.stream()
+			.filter(marker -> {
+				counter.getAndIncrement();
+				return marker.getWorldPoint().equals(wp);
+			})
+			.mapToInt(user -> counter.get())
+			.findFirst()
+			.orElse(-1);
+			if(index == -1){
+				log.info("Tile has no model");
+				return;
+			}
+			ImmersiveMarker mk = markers.get(index);
+			clientThread.invoke(() -> {remodelTile(mk, mk.getModelId()+ (shiftPressed ? 1 : -1));});
+		}
+	}*/
 
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged gameStateChanged)
@@ -151,9 +186,12 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 			}else{
 				rlObj.setModel(model);
 			}
-			rlObj.setLocation(LocalPoint.fromWorld(client, worldPoint), worldPoint.getPlane());
+			LocalPoint modelLocation = LocalPoint.fromWorld(client, worldPoint);
+			if( modelLocation == null ) return;
+			rlObj.setLocation(modelLocation, worldPoint.getPlane());
 			rlObj.setActive(true);
-			rlObj.setOrientation(0);
+			rlObj.setOrientation(marker.getOrientation());
+			rlObj.setModelHeight(-100);
 			objects.put(worldPoint, rlObj);
 		}
 	}
@@ -178,14 +216,23 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	}
 
 	private void remodelTile(ImmersiveMarker tile, int modelId){
-
-		int index = markers.indexOf(tile);
+		AtomicInteger counter = new AtomicInteger(-1);
+		int index = markers.stream()
+		.filter(marker -> {
+			counter.getAndIncrement();
+			return marker.getWorldPoint().equals(tile.getWorldPoint());
+		})
+		.mapToInt(user -> counter.get())
+		.findFirst()
+		.orElse(-1);
+		if(index == -1){
+			log.info("Tile has no model");
+			return;
+		}
 		tile.setModelId(modelId);
 		markers.set(index, tile);
 		saveMarkers(tile.getWorldPoint().getRegionID(), markers);
 		loadMarkers();
-
-
 	}
 
 	private void markTile(LocalPoint localPoint, int modelId)
@@ -198,16 +245,52 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 		WorldPoint worldPoint = WorldPoint.fromLocalInstance(client, localPoint);
 
 		int regionId = worldPoint.getRegionID();
-		ImmersiveMarker point = new ImmersiveMarker(modelId, worldPoint);
+		int orientation = 0;
+		OrientationMethod method = config.markerOrientation();
+		switch(method){
+			case EAST:
+				orientation = 512;
+				break;
+			case MATCH_PLAYER:
+				orientation = (client.getLocalPlayer().getOrientation() + 1024)%2048;
+				break;
+			case NORTH:
+				orientation = 0;
+				break;
+			case RANDOM:
+				orientation = rnd.nextInt(2048);
+				break;
+			case SOUTH:
+				orientation = 1024;
+				break;
+			case WEST:
+				orientation = 1536;
+				break;
+			default:
+				orientation = 0;
+				break;
+			
+		}
+
+		ImmersiveMarker point = new ImmersiveMarker(modelId, worldPoint, orientation);
 		log.debug("Updating point: {} - {}", point, worldPoint);
 
 		List<ImmersiveMarker> groundMarkerPoints = new ArrayList<>(getPoints(regionId));
-		if (groundMarkerPoints.contains(point))
+		AtomicInteger counter = new AtomicInteger(-1);
+		int index = markers.stream()
+			.filter(marker -> {
+				counter.getAndIncrement();
+				return marker.getWorldPoint().equals(worldPoint);
+			})
+			.mapToInt(user -> counter.get())
+			.findFirst()
+			.orElse(-1);
+		if (index != -1)
 		{
 			WorldPoint key = point.getWorldPoint();
 			objects.get(key).setActive(false);
 			objects.remove(key);
-			groundMarkerPoints.remove(point);
+			groundMarkerPoints.remove(index);
 		}
 		else
 		{
@@ -254,42 +337,52 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 
 			if (existingOpt.isPresent())
 			{
-				var existing = existingOpt.get();
+				ImmersiveMarker existing = existingOpt.get();
 
 				MenuEntry propSelect = client.createMenuEntry(-2)
 					.setOption("Remodel")
 					.setTarget("Tile")
 					.setType(MenuAction.RUNELITE_SUBMENU);
 
-				client.createMenuEntry(-2)
-					.setOption("Other")
+				client.createMenuEntry(-3)
+					.setOption(config.ModelName1())
 					.setType(MenuAction.RUNELITE)
 					.setParent(propSelect)
-					.onClick(e ->
-					{
-						//TODO: Open chatboxPanelManager number input "model id"
-					});
-
+					.onClick(e -> remodelTile(existing, config.ModelID1()));
+				client.createMenuEntry(-3)
+					.setOption(config.ModelName2())
+					.setType(MenuAction.RUNELITE)
+					.setParent(propSelect)
+					.onClick(e -> remodelTile(existing, config.ModelID2()));
+				client.createMenuEntry(-3)
+					.setOption(config.ModelName3())
+					.setType(MenuAction.RUNELITE)
+					.setParent(propSelect)
+					.onClick(e -> remodelTile(existing, config.ModelID3()));
+				client.createMenuEntry(-3)
+					.setOption(config.ModelName4())
+					.setType(MenuAction.RUNELITE)
+					.setParent(propSelect)
+					.onClick(e -> remodelTile(existing, config.ModelID4()));
 					client.createMenuEntry(-3)
-						.setOption(config.ModelName1())
+						.setOption(config.ModelName5())
 						.setType(MenuAction.RUNELITE)
 						.setParent(propSelect)
-						.onClick(e -> remodelTile(existing, config.ModelID1()));
-					client.createMenuEntry(-3)
-						.setOption(config.ModelName2())
-						.setType(MenuAction.RUNELITE)
-						.setParent(propSelect)
-						.onClick(e -> remodelTile(existing, config.ModelID2()));
-					client.createMenuEntry(-3)
-						.setOption(config.ModelName3())
-						.setType(MenuAction.RUNELITE)
-						.setParent(propSelect)
-						.onClick(e -> remodelTile(existing, config.ModelID3()));
-					client.createMenuEntry(-3)
-						.setOption(config.ModelName4())
-						.setType(MenuAction.RUNELITE)
-						.setParent(propSelect)
-						.onClick(e -> remodelTile(existing, config.ModelID4()));
+						.onClick(e -> remodelTile(existing, config.ModelID5()));
+				client.createMenuEntry(-2)
+				.setOption("Other")
+				.setType(MenuAction.RUNELITE)
+				.setParent(propSelect)
+				.onClick(e ->
+				{	
+					chatboxPanelManager.openTextInput("Model ID")
+					.value(Integer.toString(existing.getModelId()))
+					.charValidator(num -> num >= (int)'0' && num <= (int)'9')
+					.onDone(input -> {
+						int newModelId = Integer.parseInt(input);
+						clientThread.invoke(() -> {remodelTile(existing, newModelId);});
+					}).build();
+				});
 			}
 		}
 	}
