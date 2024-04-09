@@ -2,13 +2,17 @@ package com.ImmersiveGroundMarkers;
 
 import net.runelite.client.ui.PluginPanel;
 import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.GridLayout;
 
 import javax.swing.ButtonGroup;
 import javax.swing.GroupLayout;
 import javax.swing.JButton;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JRadioButton;
-import javax.swing.GroupLayout.Group;
+import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
 
 import com.ImmersiveGroundMarkers.ImmersiveGroundMarkersConfig.OrientationMethod;
@@ -17,8 +21,7 @@ public class PropSelectPanel extends PluginPanel {
 
     private final ImmersiveGroundMarkersPlugin plugin;
 
-    private final JPanel OrientationButtonPanel = new JPanel();
-
+    private final JPanel OrientationButtonPanel;
     private final JButton NorthButton;
     private final JButton EastButton;
     private final JButton SouthButton;
@@ -32,18 +35,25 @@ public class PropSelectPanel extends PluginPanel {
 
     private JButton prevButton;
 
+    private JPanel groupControlPanel;
+    private JButton prevGroupButton;
+    private JLabel groupTitle;
+    private JButton nextGroupButton;
+
     public PropSelectPanel(ImmersiveGroundMarkersPlugin plugin){
         this.plugin = plugin;
+
+
+        GroupLayout fullLayout = new GroupLayout(this);
 
         //final String wrap = "<html><body style = \"text-align: center\" >";
         //final String br = "<br>";
         //final String endWrap = "</body>";
 
-        GroupLayout fullLayout = new GroupLayout(this);
-
-        setLayout(fullLayout);
+        setLayout(new GridLayout(3, 1));
         setBorder(new EmptyBorder(4,4,4,4));
 
+        OrientationButtonPanel = new JPanel();
         GroupLayout orientationLayout = new GroupLayout(OrientationButtonPanel);
         //layout.setAutoCreateGaps(true);
         //layout.setAutoCreateContainerGaps(true);
@@ -130,15 +140,40 @@ public class PropSelectPanel extends PluginPanel {
             .addComponent(FaceAwayFromPlayerButton, hMin, hPref, hMax))
         );
 
-        //add(OrientationButtonPanel, BorderLayout.NORTH);
-
-        fullLayout.setVerticalGroup(
-            fullLayout.createSequentialGroup()
-            .addComponent(OrientationButtonPanel)
-            .addGroup(fullLayout.createParallelGroup(GroupLayout.Alignment.CENTER))
-            .addComponent()
-        );
+        groupControlPanel = new JPanel();
+        groupControlPanel.setLayout(new GridBagLayout());
         
+        GridBagConstraints prevConstraints = new GridBagConstraints();
+        prevConstraints.weightx = 0.2;
+        prevConstraints.gridx = 0;
+        prevConstraints.gridy = 0;
+        prevConstraints.anchor = GridBagConstraints.FIRST_LINE_START;
+        GridBagConstraints titleConstraints = new GridBagConstraints();
+        titleConstraints.fill = GridBagConstraints.HORIZONTAL;
+        titleConstraints.gridx = 1;
+        titleConstraints.gridy = 0;
+        titleConstraints.anchor = GridBagConstraints.PAGE_START;
+        GridBagConstraints nextConstraints = new GridBagConstraints();
+        nextConstraints.weightx = 0.2;
+        nextConstraints.gridx = 2;
+        nextConstraints.gridy = 0;
+        nextConstraints.anchor = GridBagConstraints.FIRST_LINE_END;
+
+        prevGroupButton = new JButton("<");
+        nextGroupButton = new JButton(">");
+        groupTitle = new JLabel("Testing", SwingConstants.CENTER); //TODO: Find proper group name;
+
+        groupControlPanel.add(prevGroupButton, prevConstraints);
+        groupControlPanel.add(groupTitle, titleConstraints);
+        groupControlPanel.add(nextGroupButton, nextConstraints);
+        
+        fullLayout.setHorizontalGroup(fullLayout.createParallelGroup(GroupLayout.Alignment.CENTER)
+        .addComponent(OrientationButtonPanel)
+        .addComponent(groupControlPanel));
+        
+        fullLayout.setVerticalGroup(fullLayout.createSequentialGroup()
+        .addComponent(OrientationButtonPanel)
+        .addComponent(groupControlPanel, 0, 30, 40));
     }  
 
     void setupButton(JButton button, OrientationMethod direction){
