@@ -30,14 +30,17 @@ import net.runelite.api.KeyCode;
 import net.runelite.api.MenuAction;
 import net.runelite.api.MenuEntry;
 import net.runelite.api.Model;
+import net.runelite.api.Renderable;
 import net.runelite.api.RuneLiteObject;
 import net.runelite.api.Tile;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.api.events.ClientTick;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.client.callback.ClientThread;
+import net.runelite.client.callback.Hooks;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ProfileChanged;
@@ -68,6 +71,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 
 	@Inject
 	private ClientToolbar clientToolbar;
+
 	//@Inject
 	//private ChatboxPanelManager chatboxPanelManager;
 
@@ -79,6 +83,8 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	private int latestModel = -1;
 
 	private boolean isPlacingTile = false;
+	private int currentModelOrientationOffset = 0;
+	private RuneLiteObject placingObject;
 
 	Random rnd = new Random();
 
@@ -122,6 +128,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 
 		clientToolbar.addNavigation(navButton);
 
+
 		loadMarkers();
 	}
 
@@ -135,6 +142,15 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	public void onProfileChanged(ProfileChanged profileChanged)
 	{
 		loadMarkers();
+	}
+
+	@Subscribe
+	public void onClientTick(final ClientTick event){
+		if(isPlacingTile && placingObject != null){
+			final Tile hoveredTile = client.getSelectedSceneTile();
+			placingObject.setLocation(hoveredTile.getLocalLocation(), hoveredTile.getPlane());
+			if(orientationMethod != OrientationMethod.RANDOM) placingObject.setOrientation(getOrientation(currentModelOrientationOffset, hoveredTile.getLocalLocation()));
+		}
 	}
 
 	@Subscribe 
@@ -303,32 +319,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 
 		int regionId = worldPoint.getRegionID();
 
-		int orientation = 0;
-		OrientationMethod method = config.markerOrientation();
-		//TODO: Add new orientation methods
-		switch(method){
-			case EAST:
-				orientation = 512;
-				break;
-			case MATCH_PLAYER:
-				orientation = (client.getLocalPlayer().getOrientation() + 1024)%2048;
-				break;
-			case NORTH:
-				orientation = 0;
-				break;
-			case RANDOM:
-				orientation = rnd.nextInt(2048);
-				break;
-			case SOUTH:
-				orientation = 1024;
-				break;
-			case WEST:
-				orientation = 1536;
-				break;
-			default:
-				orientation = 0;
-				break;
-		}
+		int orientation = getOrientation(regionId, localPoint);
 
 		MarkerPoint point = new MarkerPoint(regionId, worldPoint.getRegionX(), worldPoint.getRegionY(), worldPoint.getPlane(), modelId, orientation);
 		log.debug("Updating point: {} - {}", point, worldPoint);
@@ -345,6 +336,82 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 		saveMarkers(regionId, tempPoints);
 
 		loadMarkers();
+	}
+
+	void startPlacingTile(int modelID, int orientationOffset){
+		Model model = client.loadModel(modelID);
+		placingObject = client.createRuneLiteObject();
+		LocalPoint modelLocation = client.getLocalPlayer().getLocalLocation();
+		if(model == null){
+			final Instant loadTimeOutInstant = Instant.now().plus(Duration.ofSeconds((5)));
+			clientThread.invoke(() -> {
+				if(Instant.now().isAfter(loadTimeOutInstant)){
+					return true;
+				}
+				Model reloadedModel = client.loadModel(modelID);
+
+				if(reloadedModel == null){
+					return false;
+				}
+				placingObject.setModel(reloadedModel);
+				return true;
+			});
+		}else{
+			placingObject.setModel(model);
+		}
+
+		if( modelLocation == null ){ 
+			log.debug("Failed to get local location");
+			isPlacingTile = false;
+			placingObject = null;
+			return;
+		}
+
+		placingObject.setLocation(modelLocation, client.getLocalPlayer().getWorldLocation().getPlane());
+		placingObject.setActive(true);
+		placingObject.setOrientation(getOrientation(orientationOffset, modelLocation));
+
+	}
+
+	public int getOrientation(int orientationOffset, LocalPoint point){
+		int xDiff;
+		int yDiff;
+		double angle;
+		switch(orientationMethod){
+			case EAST:
+				return (512 + orientationOffset) % 2048;
+			case FACE_AWAY_PLAYER:
+				xDiff = client.getLocalPlayer().getLocalLocation().getX() - point.getX();
+				yDiff = client.getLocalPlayer().getLocalLocation().getY() - point.getY();
+				if(xDiff == 0&& yDiff == 0){
+					return (client.getLocalPlayer().getOrientation() + orientationOffset + 1024) % 2048;
+				}
+				angle = 1.0 + Math.atan2(yDiff,xDiff)/Math.TAU;
+				return (orientationOffset + (int)(angle * 2048)) % 2048;
+			case FACE_PLAYER:
+				xDiff = client.getLocalPlayer().getLocalLocation().getX() - point.getX();
+				yDiff = client.getLocalPlayer().getLocalLocation().getY() - point.getY();
+				if(xDiff == 0&& yDiff == 0){
+					return (client.getLocalPlayer().getOrientation() + orientationOffset) % 2048;
+				}
+				angle = 1.0 + Math.atan2(yDiff,xDiff)/Math.TAU;
+				return (orientationOffset + 1024 + (int)(angle * 2048)) % 2048;
+			case MATCH_PLAYER:
+				return (client.getLocalPlayer().getOrientation() + orientationOffset) % 2048;
+			case NORTH:
+				return orientationOffset;
+			case OPPOSE_PLAYER:
+				return (client.getLocalPlayer().getOrientation() + orientationOffset + 1024) % 2048;
+			case RANDOM:
+				return rnd.nextInt(2048);
+			case SOUTH:
+				return (1024 + orientationOffset) % 2048;
+			case WEST:
+				return (1536 + orientationOffset) % 2048;
+			default:
+				return orientationOffset;
+
+		}
 	}
 
 	@Subscribe
