@@ -1,14 +1,18 @@
 package com.ImmersiveGroundMarkers;
 
 import net.runelite.client.ui.PluginPanel;
+import net.runelite.client.util.ImageUtil;
+
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
+import java.awt.image.BufferedImage;
 
 import javax.swing.ButtonGroup;
 import javax.swing.GroupLayout;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -40,9 +44,14 @@ public class PropSelectPanel extends PluginPanel {
     private JLabel groupTitle;
     private JButton nextGroupButton;
 
+    private JPanel propButtonsPanel;
+
+    private MarkerPack currentPack;
+
     public PropSelectPanel(ImmersiveGroundMarkersPlugin plugin){
         this.plugin = plugin;
 
+        currentPack = MarkerPack.ROCKS;
 
         GroupLayout fullLayout = new GroupLayout(this);
 
@@ -50,7 +59,7 @@ public class PropSelectPanel extends PluginPanel {
         //final String br = "<br>";
         //final String endWrap = "</body>";
 
-        setLayout(new GridLayout(3, 1));
+        setLayout(fullLayout);
         setBorder(new EmptyBorder(4,4,4,4));
 
         OrientationButtonPanel = new JPanel();
@@ -142,6 +151,7 @@ public class PropSelectPanel extends PluginPanel {
 
         groupControlPanel = new JPanel();
         groupControlPanel.setLayout(new GridBagLayout());
+        groupControlPanel.setBorder(new EmptyBorder(5, 0, 5, 0));
         
         GridBagConstraints prevConstraints = new GridBagConstraints();
         prevConstraints.weightx = 0.2;
@@ -160,20 +170,39 @@ public class PropSelectPanel extends PluginPanel {
         nextConstraints.anchor = GridBagConstraints.FIRST_LINE_END;
 
         prevGroupButton = new JButton("<");
+        prevGroupButton.addActionListener(l -> {
+            int nextPackOrdinal = (MarkerPack.values().length + currentPack.ordinal() - 1)%MarkerPack.values().length;
+            currentPack = MarkerPack.values()[nextPackOrdinal];
+            groupTitle.setText(currentPack.displayName);
+            generatePropButtons();
+        });
         nextGroupButton = new JButton(">");
-        groupTitle = new JLabel("Testing", SwingConstants.CENTER); //TODO: Find proper group name;
+        nextGroupButton.addActionListener(l -> {
+            int nextPackOrdinal = (currentPack.ordinal() + 1)%MarkerPack.values().length;
+            currentPack = MarkerPack.values()[nextPackOrdinal];
+            groupTitle.setText(currentPack.displayName);
+            generatePropButtons();
+        });
+        groupTitle = new JLabel(currentPack.displayName, SwingConstants.CENTER); //TODO: Find proper group name;
 
         groupControlPanel.add(prevGroupButton, prevConstraints);
         groupControlPanel.add(groupTitle, titleConstraints);
         groupControlPanel.add(nextGroupButton, nextConstraints);
         
+        propButtonsPanel = new JPanel();
+        generatePropButtons();
+
         fullLayout.setHorizontalGroup(fullLayout.createParallelGroup(GroupLayout.Alignment.CENTER)
         .addComponent(OrientationButtonPanel)
-        .addComponent(groupControlPanel));
+        .addComponent(groupControlPanel)
+        .addComponent(propButtonsPanel)
+        );
         
         fullLayout.setVerticalGroup(fullLayout.createSequentialGroup()
         .addComponent(OrientationButtonPanel)
-        .addComponent(groupControlPanel, 0, 30, 40));
+        .addComponent(groupControlPanel)
+        .addComponent(propButtonsPanel)
+        );
     }  
 
     void setupButton(JButton button, OrientationMethod direction){
@@ -188,6 +217,26 @@ public class PropSelectPanel extends PluginPanel {
         button.setSelected(plugin.getOrientationMethod() == direction);
         if(button.isSelected()){
             prevButton = button;
+        }
+    }
+
+    void generatePropButtons(){
+        for(Component c : propButtonsPanel.getComponents()){
+            c.setVisible(false);
+        }
+        propButtonsPanel.removeAll();
+        int propCount = Math.min(currentPack.names.length, currentPack.ids.length);
+        propButtonsPanel.setLayout(new GridLayout(propCount/4 + (propCount%4 != 0 ? 1 : 0), 4));
+
+        for (int i = 0; i < propCount; i++) {
+            BufferedImage propIcon = ImageUtil.loadImageResource(getClass(), "icon.png");
+            //TODO: Add and load icons path - currentPack.name() + "/" + currentPack.names[i] + ".png";
+            JButton newButton = new JButton(new ImageIcon(propIcon));
+            newButton.setToolTipText(currentPack.names[i]);
+            newButton.addActionListener(l -> {
+                //TODO: Add call to plugin to go into prop placing mode currentPack.ids[i]
+            });
+            propButtonsPanel.add(newButton);
         }
     }
 }

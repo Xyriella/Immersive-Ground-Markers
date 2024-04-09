@@ -17,6 +17,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.google.inject.Provides;
 import com.ImmersiveGroundMarkers.ImmersiveGroundMarkersConfig.OrientationMethod;
+import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import javax.inject.Inject;
 
@@ -76,6 +77,8 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	private int lastPlane = -1;
 
 	private int latestModel = -1;
+
+	private boolean isPlacingTile = false;
 
 	Random rnd = new Random();
 
@@ -348,24 +351,54 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	public void onMenuEntryAdded(MenuEntryAdded event)
 	{
 		final boolean hotKeyPressed = client.isKeyPressed(KeyCode.KC_SHIFT);
-		if (hotKeyPressed && event.getOption().equals(WALK_HERE))
-		{
+		if(event.getOption().equals(WALK_HERE) && (isPlacingTile || hotKeyPressed)){
 			final Tile selectedSceneTile = client.getSelectedSceneTile();
-
-			if (selectedSceneTile == null)
-			{
+			if(selectedSceneTile == null){
 				return;
 			}
 
 			final WorldPoint worldPoint = WorldPoint.fromLocalInstance(client, selectedSceneTile.getLocalLocation());
-			final int regionId = worldPoint.getRegionID();
-			var regionPoints = getPoints(regionId);
+			final int regionID = worldPoint.getRegionID();
+			var regionPoints = getPoints(regionID);
 			var existingOpt = regionPoints.stream()
 				.filter(p -> p.getRegionX() == worldPoint.getRegionX() && p.getRegionY() == worldPoint.getRegionY() && p.getZ() == worldPoint.getPlane())
 				.findFirst();
+				
+			if(isPlacingTile && latestModel != -1){
 
-			client.createMenuEntry(-1)
-				.setOption(existingOpt.isPresent() ? "Remove Prop From" : "Decorate")
+				if(existingOpt.isPresent()){
+					MarkerPoint existing = existingOpt.get();
+					client.createMenuEntry(-3)
+					.setOption("Redecorate")
+					.setTarget("Tile")
+					.setType(MenuAction.RUNELITE)
+					.onClick(e -> {
+						remodelTile(existing, latestModel);
+						if(!hotKeyPressed){
+							isPlacingTile = false;
+						}
+					});
+				}else{
+					client.createMenuEntry(0)
+					.setOption("Decorate")
+					.setTarget("Tile")
+					.setType(MenuAction.RUNELITE)
+					.onClick(e -> {
+						Tile target = client.getSelectedSceneTile();
+						if (target != null)
+						{	
+							markTile(target.getLocalLocation(), latestModel);
+						}
+						if(!hotKeyPressed){
+							isPlacingTile = false;
+						}
+					});
+				}
+			}
+			if (hotKeyPressed && existingOpt.isPresent()){
+
+				client.createMenuEntry(-1)
+				.setOption("Remove Prop From")
 				.setTarget("Tile")
 				.setType(MenuAction.RUNELITE)
 				.onClick(e ->
@@ -373,50 +406,10 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 					Tile target = client.getSelectedSceneTile();
 					if (target != null)
 					{	
-						int modelId = config.markerPack().ids[0];
-						for(int i : config.markerPack().ids){
-							if( i == latestModel ){
-								modelId = i;
-								break;
-							}
-						}
-						markTile(target.getLocalLocation(), modelId);
+						markTile(target.getLocalLocation(), 1);
 					}
 				});
-
-			if (existingOpt.isPresent())
-			{
-				MarkerPoint existing = existingOpt.get();
-
-				MenuEntry propSelect = client.createMenuEntry(-2)
-					.setOption("Remodel")
-					.setTarget("Tile")
-					.setType(MenuAction.RUNELITE_SUBMENU);
-
-				for(int i = 0; i < config.markerPack().ids.length; i++){
-					final int idIndex = i;
-					client.createMenuEntry(-3)
-					.setOption(config.markerPack().names[i])
-					.setType(MenuAction.RUNELITE)
-					.setParent(propSelect)
-					.onClick(e -> remodelTile(existing, config.markerPack().ids[idIndex]));
-				}
-
-				//Manual ID entry, hidden for release
-				/*client.createMenuEntry(-2)
-				.setOption("Other")
-				.setType(MenuAction.RUNELITE)
-				.setParent(propSelect)
-				.onClick(e ->
-				{	
-					chatboxPanelManager.openTextInput("Model ID")
-					.value(Integer.toString(existing.getModelId()))
-					.charValidator(num -> num >= (int)'0' && num <= (int)'9')
-					.onDone(input -> {
-						int newModelId = Integer.parseInt(input);
-						clientThread.invoke(() -> {remodelTile(existing, newModelId);});
-					}).build();
-				});*/
+		
 			}
 		}
 	}
