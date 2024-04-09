@@ -11,7 +11,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -76,8 +75,8 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	private static final String REGION_PREFIX = "imregion_";
 	private static final String WALK_HERE = "Walk here";
 
-	private final List<ImmersiveMarker> markers = new ArrayList<>();
-	private final LinkedHashMap<WorldPoint, RuneLiteObject> objects = new LinkedHashMap<>();
+	private final List<MarkerPoint> markers = new ArrayList<>();
+	private final LinkedHashMap<MarkerPoint, RuneLiteObject> objects = new LinkedHashMap<>();
 
 	@Override
 	protected void startUp() throws Exception
@@ -151,14 +150,60 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 		return configManager.getConfig(ImmersiveGroundMarkersConfig.class);
 	}
 
-	Collection<ImmersiveMarker> getPoints(int regionId){
+	Collection<MarkerPoint> getPoints(int regionId){
 		String json = configManager.getConfiguration(CONFIG_GROUP, REGION_PREFIX + regionId);
 
 		if(Strings.isNullOrEmpty((json))){
 			return Collections.emptyList();
 		}
 
-		return gson.fromJson(json, new TypeToken<List<ImmersiveMarker>>(){}.getType());
+		return gson.fromJson(json, new TypeToken<List<MarkerPoint>>(){}.getType());
+	}
+	
+	void loadObjects(Collection<MarkerPoint> points){
+		for(MarkerPoint marker : points){
+			log.debug("Loading point {}", marker);
+			WorldPoint wp = WorldPoint.fromRegion(marker.getRegionID(), marker.getRegionX(), marker.getRegionY(), marker.getZ());
+			Collection<WorldPoint> lWorldPoints = WorldPoint.toLocalInstance(client, wp);
+			int modelId = marker.getModelId();
+			
+			Model model = client.loadModel(modelId);
+
+			for( WorldPoint localWP : lWorldPoints){
+				RuneLiteObject rlObj = client.createRuneLiteObject();
+				LocalPoint modelLocation = LocalPoint.fromWorld(client, localWP);
+				if(model == null){
+					final Instant loadTimeOutInstant = Instant.now().plus(Duration.ofSeconds((5)));
+					clientThread.invoke(() -> {
+						if(Instant.now().isAfter(loadTimeOutInstant)){
+							return true;
+						}
+						Model reloadedModel = client.loadModel(modelId);
+		
+						if(reloadedModel == null){
+							return false;
+						}
+						rlObj.setModel(reloadedModel);
+						return true;
+					});
+				}else{
+					rlObj.setModel(model);
+				}
+	
+				if( modelLocation == null ){ 
+					log.debug("Failed to get local location");
+					continue;
+				}
+	
+				rlObj.setLocation(modelLocation, localWP.getPlane());
+				rlObj.setActive(true);
+				rlObj.setOrientation(marker.getOrientation());
+	
+				objects.put(marker, rlObj);
+			}
+
+			log.debug("Added new marker {}", marker);
+		}
 	}
 
 	void loadMarkers(){
@@ -174,53 +219,24 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 
 		for(int regionId : regions){
 			log.debug("Loading points for region {}", regionId);
-
-			markers.addAll(getPoints(regionId));
+			Collection<MarkerPoint> regionPoints = getPoints(regionId);
+			loadObjects(regionPoints);
+			markers.addAll(regionPoints);
 		}
-
-		for(ImmersiveMarker marker : markers){
-			int modelId = marker.getModelId();
-			WorldPoint worldPoint = marker.getWorldPoint();
-			RuneLiteObject rlObj = client.createRuneLiteObject();
-			Model model = client.loadModel(modelId);
-			if(model == null){
-				final Instant loadTimeOutInstant = Instant.now().plus(Duration.ofSeconds((5)));
-				clientThread.invoke(() -> {
-					if(Instant.now().isAfter(loadTimeOutInstant)){
-						return true;
-					}
-					Model reloadedModel = client.loadModel(modelId);
-
-					if(reloadedModel == null){
-						return false;
-					}
-					rlObj.setModel(reloadedModel);
-					return true;
-				});
-			}else{
-				rlObj.setModel(model);
-			}
-			LocalPoint modelLocation = LocalPoint.fromWorld(client, worldPoint);
-			if( modelLocation == null ) return;
-			rlObj.setLocation(modelLocation, worldPoint.getPlane());
-			rlObj.setActive(true);
-			rlObj.setOrientation(marker.getOrientation());
-			rlObj.setModelHeight(-100);
-			objects.put(worldPoint, rlObj);
-		}
+		
 	}
 
 	void removeObjects(){
-		for(ImmersiveMarker marker : markers){
-			objects.get(marker.getWorldPoint()).setActive(false);
+		for(MarkerPoint marker : markers){
+			objects.get(marker).setActive(false);
 		}
-		Set<WorldPoint> keys = objects.keySet();
-		for(WorldPoint key : keys){
+		Set<MarkerPoint> keys = objects.keySet();
+		for(MarkerPoint key : keys){
 			objects.get(key).setActive(false);
 		}
 	}
 
-	void saveMarkers(int regionId, Collection<ImmersiveMarker> markers){
+	void saveMarkers(int regionId, Collection<MarkerPoint> markers){
 		if(markers == null || markers.isEmpty()){
 			configManager.unsetConfiguration(CONFIG_GROUP, REGION_PREFIX + regionId);
 			return;
@@ -229,24 +245,12 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 		configManager.setConfiguration(CONFIG_GROUP, REGION_PREFIX + regionId, json);
 	}
 
-	private void remodelTile(ImmersiveMarker tile, int modelId){
-		AtomicInteger counter = new AtomicInteger(-1);
-		int index = markers.stream()
-		.filter(marker -> {
-			counter.getAndIncrement();
-			return marker.getWorldPoint().equals(tile.getWorldPoint());
-		})
-		.mapToInt(user -> counter.get())
-		.findFirst()
-		.orElse(-1);
-		if(index == -1){
-			log.info("Tile has no model");
-			return;
-		}
-		tile.setModelId(modelId);
-		markers.set(index, tile);
-		latestModel = modelId;
-		saveMarkers(tile.getWorldPoint().getRegionID(), markers);
+	private void remodelTile(MarkerPoint existing, int newModelId){
+		Collection<MarkerPoint> tempPoints = new ArrayList<>(getPoints(existing.getRegionID()));
+		var newPoint = new MarkerPoint(existing.getRegionID(), existing.getRegionX(), existing.getRegionY(), existing.getZ(), newModelId, existing.getOrientation());
+		tempPoints.remove(newPoint);
+		tempPoints.add(newPoint);
+		saveMarkers(existing.getRegionID(), tempPoints);
 		loadMarkers();
 	}
 
@@ -259,7 +263,11 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 
 		WorldPoint worldPoint = WorldPoint.fromLocalInstance(client, localPoint);
 
+		log.info("Local point is {}", localPoint);
+		log.info("World point is {}", worldPoint);
+
 		int regionId = worldPoint.getRegionID();
+
 		int orientation = 0;
 		OrientationMethod method = config.markerOrientation();
 		switch(method){
@@ -284,35 +292,21 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 			default:
 				orientation = 0;
 				break;
-			
 		}
 
-		ImmersiveMarker point = new ImmersiveMarker(modelId, worldPoint, orientation);
+		MarkerPoint point = new MarkerPoint(regionId, worldPoint.getRegionX(), worldPoint.getRegionY(), worldPoint.getPlane(), modelId, orientation);
 		log.debug("Updating point: {} - {}", point, worldPoint);
 
-		List<ImmersiveMarker> groundMarkerPoints = new ArrayList<>(getPoints(regionId));
-		AtomicInteger counter = new AtomicInteger(-1);
-		int index = markers.stream()
-			.filter(marker -> {
-				counter.getAndIncrement();
-				return marker.getWorldPoint().equals(worldPoint);
-			})
-			.mapToInt(user -> counter.get())
-			.findFirst()
-			.orElse(-1);
-		if (index != -1)
-		{
-			WorldPoint key = point.getWorldPoint();
-			objects.get(key).setActive(false);
-			objects.remove(key);
-			groundMarkerPoints.remove(index);
-		}
-		else
-		{
-			groundMarkerPoints.add(point);
+		List<MarkerPoint> tempPoints = new ArrayList<>(getPoints(regionId));
+		if(tempPoints.contains(point)){
+			tempPoints.remove(point);
+			objects.get(point).setActive(false);
+			objects.remove(point);
+		}else{
+			tempPoints.add(point);
 		}
 
-		saveMarkers(regionId, groundMarkerPoints);
+		saveMarkers(regionId, tempPoints);
 
 		loadMarkers();
 	}
@@ -334,11 +328,11 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 			final int regionId = worldPoint.getRegionID();
 			var regionPoints = getPoints(regionId);
 			var existingOpt = regionPoints.stream()
-				.filter(p -> p.getWorldPoint().equals(worldPoint))
+				.filter(p -> p.getRegionX() == worldPoint.getRegionX() && p.getRegionY() == worldPoint.getRegionY() && p.getZ() == worldPoint.getPlane())
 				.findFirst();
 
 			client.createMenuEntry(-1)
-				.setOption(existingOpt.isPresent() ? "Unmark" : "Mark")
+				.setOption(existingOpt.isPresent() ? "Remove Prop From" : "Decorate")
 				.setTarget("Tile")
 				.setType(MenuAction.RUNELITE)
 				.onClick(e ->
@@ -359,7 +353,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 
 			if (existingOpt.isPresent())
 			{
-				ImmersiveMarker existing = existingOpt.get();
+				MarkerPoint existing = existingOpt.get();
 
 				MenuEntry propSelect = client.createMenuEntry(-2)
 					.setOption("Remodel")
