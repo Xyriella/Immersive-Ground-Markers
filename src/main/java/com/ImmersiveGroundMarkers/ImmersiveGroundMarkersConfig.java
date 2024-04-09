@@ -11,6 +11,9 @@ public interface ImmersiveGroundMarkersConfig extends Config
 	enum OrientationMethod {
         RANDOM,
         MATCH_PLAYER,
+		OPPOSE_PLAYER,
+		FACE_PLAYER,
+		FACE_AWAY_PLAYER,
         NORTH,
         SOUTH,
         EAST,

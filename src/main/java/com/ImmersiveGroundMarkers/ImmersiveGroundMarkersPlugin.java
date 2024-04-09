@@ -2,6 +2,7 @@ package com.ImmersiveGroundMarkers;
 
 
 import java.applet.Applet;
+import java.awt.image.BufferedImage;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -19,6 +20,8 @@ import com.ImmersiveGroundMarkers.ImmersiveGroundMarkersConfig.OrientationMethod
 import com.google.common.base.Strings;
 import javax.inject.Inject;
 
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
@@ -40,6 +43,9 @@ import net.runelite.client.events.ProfileChanged;
 //import net.runelite.client.game.chatbox.ChatboxPanelManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.ui.ClientToolbar;
+import net.runelite.client.ui.NavigationButton;
+import net.runelite.client.util.ImageUtil;
 
 @Slf4j
 @PluginDescriptor(
@@ -59,6 +65,8 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	@Inject
 	private ConfigManager configManager;
 
+	@Inject
+	private ClientToolbar clientToolbar;
 	//@Inject
 	//private ChatboxPanelManager chatboxPanelManager;
 
@@ -74,13 +82,43 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	private static final String CONFIG_GROUP = "immersiveGroundMarkers";
 	private static final String REGION_PREFIX = "imregion_";
 	private static final String WALK_HERE = "Walk here";
+	private static final String ORIENTATION_CONFIG = "markerOrientation";
 
 	private final List<MarkerPoint> markers = new ArrayList<>();
 	private final LinkedHashMap<MarkerPoint, RuneLiteObject> objects = new LinkedHashMap<>();
 
+	private PropSelectPanel panel;
+	private NavigationButton navButton;
+
+	@Getter
+	private OrientationMethod orientationMethod;
+
+	public void setOrientationMethod(OrientationMethod newMethod){
+		orientationMethod = newMethod;
+		configManager.setConfiguration(CONFIG_GROUP, ORIENTATION_CONFIG, newMethod);
+	}
+
 	@Override
 	protected void startUp() throws Exception
 	{
+		orientationMethod = OrientationMethod.valueOf(configManager.getConfiguration(CONFIG_GROUP, ORIENTATION_CONFIG));
+		if(orientationMethod == null){
+			orientationMethod = config.markerOrientation();
+			if(orientationMethod == null){
+				orientationMethod = OrientationMethod.RANDOM;
+			}
+		}
+		panel = new PropSelectPanel(this);
+		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "icon.png");
+		
+		navButton = NavigationButton.builder()
+		.tooltip("Immersive Ground Markers")
+		.icon(icon)
+		.panel(panel)
+		.build();
+
+		clientToolbar.addNavigation(navButton);
+
 		loadMarkers();
 	}
 
@@ -162,7 +200,6 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	
 	void loadObjects(Collection<MarkerPoint> points){
 		for(MarkerPoint marker : points){
-			log.debug("Loading point {}", marker);
 			WorldPoint wp = WorldPoint.fromRegion(marker.getRegionID(), marker.getRegionX(), marker.getRegionY(), marker.getZ());
 			Collection<WorldPoint> lWorldPoints = WorldPoint.toLocalInstance(client, wp);
 			int modelId = marker.getModelId();
@@ -201,8 +238,6 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	
 				objects.put(marker, rlObj);
 			}
-
-			log.debug("Added new marker {}", marker);
 		}
 	}
 
@@ -263,13 +298,11 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 
 		WorldPoint worldPoint = WorldPoint.fromLocalInstance(client, localPoint);
 
-		log.info("Local point is {}", localPoint);
-		log.info("World point is {}", worldPoint);
-
 		int regionId = worldPoint.getRegionID();
 
 		int orientation = 0;
 		OrientationMethod method = config.markerOrientation();
+		//TODO: Add new orientation methods
 		switch(method){
 			case EAST:
 				orientation = 512;
