@@ -250,25 +250,26 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
             c.setVisible(false);
         }
         propButtonsPanel.removeAll();
-        int propCount = Math.min(currentPack.names.length, currentPack.ids.length);
+        int propCount = currentPack.markers.length;
         propButtonsPanel.setLayout(new GridLayout(propCount/4 + (propCount%4 != 0 ? 1 : 0), 4));
 
         BufferedImage defaultIcon = ImageUtil.loadImageResource(getClass(), "icon.png");
 
         for (int i = 0; i < propCount; i++) {
             JButton newButton;
+            final MarkerOption mkOpt = currentPack.markers[i];
             try {
-                BufferedImage propIcon = ImageUtil.loadImageResource(getClass(), "props/"+currentPack.name()+"/"+currentPack.names[i]+".png");
+                BufferedImage propIcon = ImageUtil.loadImageResource(getClass(), "props/"+currentPack.name()+"/"+mkOpt.name+".png");
                 newButton = new JButton(new ImageIcon(propIcon));
             } catch (Exception e) {
                 newButton = new JButton(new ImageIcon(defaultIcon));
             }
             
-            final int modelID = currentPack.ids[i];
-            newButton.setToolTipText(currentPack.names[i]);
+            final int modelID = currentPack.markers[i].modelID;
+            newButton.setToolTipText(mkOpt.name);
             newButton.addKeyListener(this);
             newButton.addActionListener(l -> {
-                plugin.startPlacingTile(modelID, 0);
+                plugin.startPlacingTile(modelID, mkOpt.orientationOffset);
             });
             propButtonsPanel.add(newButton);
         }

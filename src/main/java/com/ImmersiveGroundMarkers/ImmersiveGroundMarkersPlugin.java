@@ -393,11 +393,11 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 				angle = 1.0 + Math.atan2(xDiff,yDiff)/(2.0*3.1415926536);
 				return (orientationOffset + (int)(angle * 2048)) % 2048;
 			case MATCH_PLAYER:
-				return (client.getLocalPlayer().getOrientation() + orientationOffset) % 2048;
+				return (client.getLocalPlayer().getOrientation() + orientationOffset + 1024) % 2048;
 			case NORTH:
 				return orientationOffset;
 			case OPPOSE_PLAYER:
-				return (client.getLocalPlayer().getOrientation() + orientationOffset + 1024) % 2048;
+				return (client.getLocalPlayer().getOrientation() + orientationOffset) % 2048;
 			case RANDOM:
 				return rnd.nextInt(2048);
 			case SOUTH:
