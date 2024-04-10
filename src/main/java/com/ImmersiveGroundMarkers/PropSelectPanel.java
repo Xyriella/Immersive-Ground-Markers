@@ -29,7 +29,11 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
 
     private final ImmersiveGroundMarkersPlugin plugin;
 
-    private final JPanel OrientationButtonPanel;
+    private JLabel panelTitle;
+
+    private final JPanel orientationButtonPanel;
+    private final ButtonGroup orientationSelectionGroup;
+
     private final JButton NorthButton;
     private final JButton EastButton;
     private final JButton SouthButton;
@@ -38,8 +42,7 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
     private final JButton FaceAwayFromPlayerButton;
     private final JButton FaceSameAsPlayerButton;
     private final JButton FaceOppositePlayerButton;
-    private final JButton RandomButton;   
-    private final ButtonGroup OrientationSelectionGroup;
+    private final JButton RandomButton;
 
     private JButton prevButton;
 
@@ -58,55 +61,67 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
         currentPack = MarkerPack.ROCKS;
 
         GroupLayout fullLayout = new GroupLayout(this);
+        
+        panelTitle = new JLabel("Orientation");
+        panelTitle.setBorder(new EmptyBorder(4,0,4,0));
 
         setLayout(fullLayout);
         setBorder(new EmptyBorder(4,4,4,4));
 
-        OrientationButtonPanel = new JPanel();
-        GroupLayout orientationLayout = new GroupLayout(OrientationButtonPanel);
+        orientationButtonPanel = new JPanel();
+        GroupLayout orientationLayout = new GroupLayout(orientationButtonPanel);
 
-        OrientationButtonPanel.setLayout(orientationLayout);
-        OrientationButtonPanel.setBorder(new EmptyBorder(2,2,2,2));
-        OrientationButtonPanel.setSize(180, 200);
+        orientationButtonPanel.setLayout(orientationLayout);
+        orientationButtonPanel.setBorder(new EmptyBorder(2,2,2,2));
+        orientationButtonPanel.setSize(180, 200);
 
-        OrientationSelectionGroup = new ButtonGroup();
+        orientationSelectionGroup = new ButtonGroup();
 
         NorthButton = new JButton("North");
         setupButton(NorthButton, OrientationMethod.NORTH);
+        NorthButton.setToolTipText("Point North");
 
         EastButton = new JButton("East");
         setupButton(EastButton, OrientationMethod.EAST);
-
+        EastButton.setToolTipText("Point East");
+        
         SouthButton = new JButton("South");
         setupButton(SouthButton, OrientationMethod.SOUTH);
+        SouthButton.setToolTipText("Point South");
 
         WestButton = new JButton("West");
         setupButton(WestButton, OrientationMethod.WEST);
+        WestButton.setToolTipText("Point West");
 
         FacePlayerButton = new JButton("Towards");
         setupButton(FacePlayerButton, OrientationMethod.FACE_PLAYER);
+        FacePlayerButton.setToolTipText("Point towards the Player");
 
         FaceAwayFromPlayerButton = new JButton("Away");
         setupButton(FaceAwayFromPlayerButton, OrientationMethod.FACE_AWAY_PLAYER);
+        FaceAwayFromPlayerButton.setToolTipText("Point away from the Player");
 
         FaceSameAsPlayerButton = new JButton("Match");
         setupButton(FaceSameAsPlayerButton, OrientationMethod.MATCH_PLAYER);
+        FaceSameAsPlayerButton.setToolTipText("Point the same way the Player is facing");
 
         FaceOppositePlayerButton = new JButton("Oppose");
         setupButton(FaceOppositePlayerButton, OrientationMethod.OPPOSE_PLAYER);
+        FaceOppositePlayerButton.setToolTipText("Point the opposite way the Player is facing");
 
         RandomButton = new JButton("Random");
         setupButton(RandomButton, OrientationMethod.RANDOM);
+        RandomButton.setToolTipText("Point in a random direction");
 
-        OrientationSelectionGroup.add(NorthButton);
-        OrientationSelectionGroup.add(EastButton);
-        OrientationSelectionGroup.add(SouthButton);
-        OrientationSelectionGroup.add(WestButton);
-        OrientationSelectionGroup.add(FacePlayerButton);
-        OrientationSelectionGroup.add(FaceAwayFromPlayerButton);
-        OrientationSelectionGroup.add(FaceSameAsPlayerButton);
-        OrientationSelectionGroup.add(FaceOppositePlayerButton);
-        OrientationSelectionGroup.add(RandomButton);
+        orientationSelectionGroup.add(NorthButton);
+        orientationSelectionGroup.add(EastButton);
+        orientationSelectionGroup.add(SouthButton);
+        orientationSelectionGroup.add(WestButton);
+        orientationSelectionGroup.add(FacePlayerButton);
+        orientationSelectionGroup.add(FaceAwayFromPlayerButton);
+        orientationSelectionGroup.add(FaceSameAsPlayerButton);
+        orientationSelectionGroup.add(FaceOppositePlayerButton);
+        orientationSelectionGroup.add(RandomButton);
 
         final int hMin = 0, hPref = 40, hMax = 95;
         final int vMin = 0, vPref = 40, vMax = 60;
@@ -174,6 +189,8 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
             groupTitle.setText(currentPack.displayName);
             generatePropButtons();
         });
+        prevGroupButton.setToolTipText("Previous");
+
         nextGroupButton = new JButton(">");
         nextGroupButton.addActionListener(l -> {
             int nextPackOrdinal = (currentPack.ordinal() + 1)%MarkerPack.values().length;
@@ -181,7 +198,10 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
             groupTitle.setText(currentPack.displayName);
             generatePropButtons();
         });
+        nextGroupButton.setToolTipText("Next");
+
         groupTitle = new JLabel(currentPack.displayName, SwingConstants.CENTER);
+        groupTitle.setToolTipText("Click and drop props into the world.\nShift-click to keep placing.\nEscape to cancel placement.");
 
         groupControlPanel.add(prevGroupButton, prevConstraints);
         groupControlPanel.add(groupTitle, titleConstraints);
@@ -191,13 +211,15 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
         generatePropButtons();
 
         fullLayout.setHorizontalGroup(fullLayout.createParallelGroup(GroupLayout.Alignment.CENTER)
-        .addComponent(OrientationButtonPanel)
+        .addComponent(panelTitle)
+        .addComponent(orientationButtonPanel)
         .addComponent(groupControlPanel)
         .addComponent(propButtonsPanel)
         );
         
         fullLayout.setVerticalGroup(fullLayout.createSequentialGroup()
-        .addComponent(OrientationButtonPanel)
+        .addComponent(panelTitle)
+        .addComponent(orientationButtonPanel)
         .addComponent(groupControlPanel)
         .addComponent(propButtonsPanel)
         );
@@ -246,9 +268,6 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
     }
 
     void generatePropButtons(){
-        for(Component c : propButtonsPanel.getComponents()){
-            c.setVisible(false);
-        }
         propButtonsPanel.removeAll();
         int propCount = currentPack.markers.length;
         propButtonsPanel.setLayout(new GridLayout(propCount/4 + (propCount%4 != 0 ? 1 : 0), 4));
@@ -273,5 +292,6 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
             });
             propButtonsPanel.add(newButton);
         }
+        propButtonsPanel.validate();
     }
 }
