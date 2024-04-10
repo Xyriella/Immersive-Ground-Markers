@@ -1,9 +1,12 @@
 package com.ImmersiveGroundMarkers;
 
+import net.runelite.api.KeyCode;
+import net.runelite.client.input.KeyListener;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.util.ImageUtil;
 
-import java.awt.BorderLayout;
+//import java.awt.event.KeyListener;
+import java.awt.event.KeyEvent;
 import java.awt.Component;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -21,7 +24,8 @@ import javax.swing.border.EmptyBorder;
 
 import com.ImmersiveGroundMarkers.ImmersiveGroundMarkersConfig.OrientationMethod;
 
-public class PropSelectPanel extends PluginPanel {
+
+public class PropSelectPanel extends PluginPanel implements KeyListener{
 
     private final ImmersiveGroundMarkersPlugin plugin;
 
@@ -55,17 +59,11 @@ public class PropSelectPanel extends PluginPanel {
 
         GroupLayout fullLayout = new GroupLayout(this);
 
-        //final String wrap = "<html><body style = \"text-align: center\" >";
-        //final String br = "<br>";
-        //final String endWrap = "</body>";
-
         setLayout(fullLayout);
         setBorder(new EmptyBorder(4,4,4,4));
 
         OrientationButtonPanel = new JPanel();
         GroupLayout orientationLayout = new GroupLayout(OrientationButtonPanel);
-        //layout.setAutoCreateGaps(true);
-        //layout.setAutoCreateContainerGaps(true);
 
         OrientationButtonPanel.setLayout(orientationLayout);
         OrientationButtonPanel.setBorder(new EmptyBorder(2,2,2,2));
@@ -183,7 +181,7 @@ public class PropSelectPanel extends PluginPanel {
             groupTitle.setText(currentPack.displayName);
             generatePropButtons();
         });
-        groupTitle = new JLabel(currentPack.displayName, SwingConstants.CENTER); //TODO: Find proper group name;
+        groupTitle = new JLabel(currentPack.displayName, SwingConstants.CENTER);
 
         groupControlPanel.add(prevGroupButton, prevConstraints);
         groupControlPanel.add(groupTitle, titleConstraints);
@@ -203,7 +201,33 @@ public class PropSelectPanel extends PluginPanel {
         .addComponent(groupControlPanel)
         .addComponent(propButtonsPanel)
         );
-    }  
+
+        setFocusable(true);
+        
+    } 
+
+    @Override
+    public void keyPressed(KeyEvent e){
+        if(e.getKeyCode() == KeyEvent.VK_ESCAPE){
+            plugin.setEscapePressed(true);
+        }
+        if(e.getKeyCode() == KeyEvent.VK_SHIFT){
+            plugin.setShiftPressed(true);
+        }
+    }
+    @Override
+    public void keyTyped(KeyEvent e){
+
+    }
+    @Override
+    public void keyReleased(KeyEvent e){
+        if(e.getKeyCode() == KeyEvent.VK_ESCAPE){
+            plugin.setEscapePressed(false);
+        }
+        if(e.getKeyCode() == KeyEvent.VK_SHIFT){
+            plugin.setShiftPressed(false);
+        }
+    }
 
     void setupButton(JButton button, OrientationMethod direction){
         button.addActionListener(l -> {
@@ -215,6 +239,7 @@ public class PropSelectPanel extends PluginPanel {
         });
         button.setBorder(new EmptyBorder(2,2,2,2));
         button.setSelected(plugin.getOrientationMethod() == direction);
+        button.addKeyListener(this);
         if(button.isSelected()){
             prevButton = button;
         }
@@ -228,13 +253,22 @@ public class PropSelectPanel extends PluginPanel {
         int propCount = Math.min(currentPack.names.length, currentPack.ids.length);
         propButtonsPanel.setLayout(new GridLayout(propCount/4 + (propCount%4 != 0 ? 1 : 0), 4));
 
+        BufferedImage defaultIcon = ImageUtil.loadImageResource(getClass(), "icon.png");
+
         for (int i = 0; i < propCount; i++) {
-            BufferedImage propIcon = ImageUtil.loadImageResource(getClass(), "icon.png");
-            //TODO: Add and load icons path - currentPack.name() + "/" + currentPack.names[i] + ".png";
-            JButton newButton = new JButton(new ImageIcon(propIcon));
+            JButton newButton;
+            try {
+                BufferedImage propIcon = ImageUtil.loadImageResource(getClass(), "props/"+currentPack.name()+"/"+currentPack.names[i]+".png");
+                newButton = new JButton(new ImageIcon(propIcon));
+            } catch (Exception e) {
+                newButton = new JButton(new ImageIcon(defaultIcon));
+            }
+            
+            final int modelID = currentPack.ids[i];
             newButton.setToolTipText(currentPack.names[i]);
+            newButton.addKeyListener(this);
             newButton.addActionListener(l -> {
-                //TODO: Add call to plugin to go into prop placing mode currentPack.ids[i]
+                plugin.startPlacingTile(modelID, 0);
             });
             propButtonsPanel.add(newButton);
         }
