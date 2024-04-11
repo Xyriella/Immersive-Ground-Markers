@@ -125,6 +125,7 @@ public enum MarkerPack {
         new MarkerOption("Grey Chinchompa", 19371, 1024, 5182),
         new MarkerOption("Scorpion", 24612, 1024, 6258),
         new MarkerOption("Pet Rock", 4271),
+        new MarkerOption("Dog", 7755, 1024),
         new MarkerOption("Crow", 26851, 1024, 6785),
         new MarkerOption("Monkey", 7744, 1024, 222),
         //new MarkerOption("Kebbit", 0),//TODO: Multimodel
@@ -152,7 +153,6 @@ public enum MarkerPack {
         new MarkerOption("Goblin", 43835, 1024, 6181),
         new MarkerOption("Swarm", 2950, 0, 0),
         new MarkerOption("Duke Pet", 49195, 1024, 10217),
-        new MarkerOption("Dog", 7755, 1024),
         new MarkerOption("Floating Fish", 13811, 1024, 3442),
         new MarkerOption("Fake Man", 4065, 1024),
         //new MarkerOption("Rock Crab Rock", 4400, 0, 1315 ), //TODO: Multimodel

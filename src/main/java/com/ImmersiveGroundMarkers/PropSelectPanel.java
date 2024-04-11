@@ -6,6 +6,7 @@ import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.util.ImageUtil;
 
 import java.awt.event.KeyEvent;
+import java.awt.Component;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
@@ -294,7 +295,14 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
     }
 
     void generatePropButtons(){
+        for (Component c : propButtonsPanel.getComponents()) {
+            JButton button = (JButton)c;
+            if(button != null){
+                button.setVisible(false);
+            }
+        }
         propButtonsPanel.removeAll();
+        propButtonsPanel.validate();
         int propCount = currentPack.markers.length;
         propButtonsPanel.setLayout(new GridLayout(0, 4, 2,2));
 
@@ -317,6 +325,5 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
             });
             propButtonsPanel.add(newButton);
         }
-        propButtonsPanel.validate();
     }
 }
