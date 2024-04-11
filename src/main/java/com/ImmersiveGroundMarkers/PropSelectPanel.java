@@ -5,9 +5,7 @@ import net.runelite.client.input.KeyListener;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.util.ImageUtil;
 
-//import java.awt.event.KeyListener;
 import java.awt.event.KeyEvent;
-import java.awt.Component;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
@@ -20,7 +18,6 @@ import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
-import javax.swing.GroupLayout.Alignment;
 import javax.swing.border.EmptyBorder;
 
 import com.ImmersiveGroundMarkers.ImmersiveGroundMarkersConfig.OrientationMethod;
@@ -30,7 +27,6 @@ import com.google.common.util.concurrent.Runnables;
 public class PropSelectPanel extends PluginPanel implements KeyListener{
 
     private final ImmersiveGroundMarkersPlugin plugin;
-    private final ChatboxPanelManager chatboxPanelManager;
 
     private JLabel panelTitle;
 
@@ -64,7 +60,6 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
 
     public PropSelectPanel(ImmersiveGroundMarkersPlugin plugin, ChatboxPanelManager chatboxPanelManager){
         this.plugin = plugin;
-        this.chatboxPanelManager = chatboxPanelManager;
 
         currentPack = MarkerPack.ROCKS;
 
@@ -315,11 +310,10 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
                 newButton = new JButton(new ImageIcon(defaultIcon));
             }
             
-            final int modelID = currentPack.markers[i].modelID;
             newButton.setToolTipText(mkOpt.name);
             newButton.addKeyListener(this);
             newButton.addActionListener(l -> {
-                plugin.startPlacingTile(modelID, mkOpt.orientationOffset);
+                plugin.startPlacingTile(mkOpt);
             });
             propButtonsPanel.add(newButton);
         }

@@ -111,25 +111,26 @@ public enum MarkerPack {
         new MarkerOption("Arcane Circle", 3094)
     ),
     CRITTERS("Critters",
-        new MarkerOption("Butterfly", 3023, 1024),
-        new MarkerOption("Puffin", 22792, 1024),
-        new MarkerOption("Seagull", 26874, 1024),
-        new MarkerOption("Squirrel", 11723, 1024),
-        new MarkerOption("Racoon", 11724, 1024),
-        new MarkerOption("Ferret", 19373, 1024),
+        new MarkerOption("Butterfly", 3023, 1024, 362),
+        new MarkerOption("Puffin", 22792, 1024, 5873),
+        new MarkerOption("Seagull", 26874, 1024, 6815),
+        new MarkerOption("Squirrel", 11723, 1024, 3211),
+        new MarkerOption("Racoon", 11724, 1024, 3213),
+        new MarkerOption("Ferret", 19373, 1024, 5188),
         //new MarkerOption("Crab", 0),//TODO: Multimodel
-        new MarkerOption("Rat", 9610, 1024),
-        new MarkerOption("Duckling", 26872, 1024),
-        new MarkerOption("Spiderling", 47399, 1024),
-        new MarkerOption("Grey Chinchompa", 19371, 1024), //TODO: Model Colours
-        new MarkerOption("Scorpion", 24612, 1024),
-        new MarkerOption("Pet Rock", 4271, 1024),
-        new MarkerOption("Crow", 26851, 1024),
-        new MarkerOption("Monkey", 7744, 1024),
+        new MarkerOption("Rat", 9610, 1024, 2704),
+        new MarkerOption("Duckling", 26872, 1024, 6818),
+        new MarkerOption("Spiderling", 47399, 1024, 6247),
+        new MarkerOption("Black Chinchompa", 19371, 1024, 5182, new short[]{5169,7343,7335,7339,7343,165}, new short[]{20,33,12,37,45,49}),
+        new MarkerOption("Grey Chinchompa", 19371, 1024, 5182),
+        new MarkerOption("Scorpion", 24612, 1024, 6258),
+        new MarkerOption("Pet Rock", 4271),
+        new MarkerOption("Crow", 26851, 1024, 6785),
+        new MarkerOption("Monkey", 7744, 1024, 222),
         //new MarkerOption("Kebbit", 0),//TODO: Multimodel
-        //new MarkerOption("Salamander", 19391), TODO: Model Colours
-        new MarkerOption("Piglet", 7364, 1024),
-        new MarkerOption("Balloon Animal", 10736, 1024)
+        new MarkerOption("Orange Salamander", 19391, 1024, 5263, new short[]{61}, new short[]{6059}),
+        new MarkerOption("Piglet", 7364, 1024, 2166),
+        new MarkerOption("Balloon Animal", 10736, 1024, 3049)
     ),
     MISCELLANEOUS("Miscellaneous",
         new MarkerOption("Rope", 21517),
@@ -146,28 +147,28 @@ public enum MarkerPack {
         new MarkerOption("", 0)
     )*/
     HANANNIE("Hanannie",
-        new MarkerOption("Entling", 49908, 1024),
-        new MarkerOption("Cat on stool", 42214, 768),
-        new MarkerOption("Goblin", 43835, 1024),
-        new MarkerOption("Swarm", 2950),
-        new MarkerOption("Duke Pet", 49195, 1024),
+        new MarkerOption("Entling", 49908, 1024, 10537),
+        new MarkerOption("Cat on stool", 42214, 768, 8231),
+        new MarkerOption("Goblin", 43835, 1024, 6181),
+        new MarkerOption("Swarm", 2950, 0, 0),
+        new MarkerOption("Duke Pet", 49195, 1024, 10217),
         new MarkerOption("Dog", 7755, 1024),
-        new MarkerOption("Floating Fish", 13811, 1024),
+        new MarkerOption("Floating Fish", 13811, 1024, 3442),
         new MarkerOption("Fake Man", 4065, 1024),
-        new MarkerOption("Rock Crab Rock", 4400),
+        //new MarkerOption("Rock Crab Rock", 4400, 0, 1315 ), //TODO: Multimodel
         //new MarkerOption("Suspect", 0), //TODO: Multimodel
         //new MarkerOption("Leprechaun", 0), //TODO: Multimodel
-        new MarkerOption("Shark Fin", 19778, 1024),
-        new MarkerOption("Chompy Toad", 3447, 1024),
+        new MarkerOption("Shark Fin", 19778, 1024, 10),
+        new MarkerOption("Chompy Toad", 3447, 1024, 1020),
         new MarkerOption("Fly Trap", 14207, 1024),
         new MarkerOption("Fox Trap", 49899),
         new MarkerOption("Toy Soldier", 13227, 1024),
-        new MarkerOption("Skavid", 20388, 1024)
+        new MarkerOption("Skavid", 20388, 1024, 257)
     )
     ;
 
-    MarkerOption[] markers;
-    
+    final MarkerOption[] markers;
+
     String displayName;
     private MarkerPack(String displayName, MarkerOption... options){
         this.displayName = displayName;

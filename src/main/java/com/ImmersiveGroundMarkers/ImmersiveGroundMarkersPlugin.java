@@ -24,7 +24,6 @@
  */
 package com.ImmersiveGroundMarkers;
 
-import java.applet.Applet;
 import java.awt.Toolkit;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.StringSelection;
@@ -58,6 +57,7 @@ import javax.inject.Inject;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.Animation;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
@@ -118,10 +118,10 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 
 	private int lastPlane = -1;
 
-	private int latestModel = -1;
+	private MarkerOption markerToPlace = null;
 
 	private boolean isPlacingTile = false;
-	private int currentModelOrientationOffset = 0;
+	//private int currentModelOrientationOffset = 0;
 	private RuneLiteObject placingObject;
 
 	Random rnd = new Random();
@@ -326,7 +326,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 
 	private void stopPlacing(){
 		isPlacingTile = false;
-		latestModel = -1;
+		markerToPlace = null;
 		placingObject.setActive(false);
 		placingObject = null;
 	}
@@ -336,7 +336,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 		if(isPlacingTile && placingObject != null){
 			final Tile hoveredTile = client.getSelectedSceneTile();
 			placingObject.setLocation(hoveredTile.getLocalLocation(), hoveredTile.getPlane());
-			if(orientationMethod != OrientationMethod.RANDOM) placingObject.setOrientation(getOrientation(currentModelOrientationOffset, hoveredTile.getLocalLocation()));
+			if(orientationMethod != OrientationMethod.RANDOM) placingObject.setOrientation(getOrientation(markerToPlace.orientationOffset, hoveredTile.getLocalLocation()));
 		}
 		
 
@@ -398,11 +398,19 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	
 	void loadObjects(Collection<MarkerPoint> points){
 		for(MarkerPoint marker : points){
+
 			WorldPoint wp = WorldPoint.fromRegion(marker.getRegionID(), marker.getRegionX(), marker.getRegionY(), marker.getZ());
 			Collection<WorldPoint> lWorldPoints = WorldPoint.toLocalInstance(client, wp);
+
 			int modelId = marker.getModelId();
-			
-			Model model = client.loadModel(modelId);
+			int animationId = marker.getAnimation();
+			short[] findColors = marker.getColorsToFind();
+			short[] replaceColors = marker.getColorsToReplace();
+
+			Model model = client.loadModel(modelId, findColors, replaceColors);
+			if(model == null) continue;
+			Animation modelAnim = client.loadAnimation(animationId);
+				
 
 			for( WorldPoint localWP : lWorldPoints){
 				RuneLiteObject rlObj = client.createRuneLiteObject();
@@ -413,16 +421,24 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 						if(Instant.now().isAfter(loadTimeOutInstant)){
 							return true;
 						}
-						Model reloadedModel = client.loadModel(modelId);
-		
+						Model reloadedModel = client.loadModel(modelId, findColors, replaceColors);
+						Animation reloadedAnimation = null;
+						reloadedAnimation = client.loadAnimation(animationId);
+						if(reloadedAnimation == null){
+							return false;
+						}
 						if(reloadedModel == null){
 							return false;
 						}
 						rlObj.setModel(reloadedModel);
+						rlObj.setAnimation(reloadedAnimation);
+						rlObj.setShouldLoop(true);
 						return true;
 					});
 				}else{
 					rlObj.setModel(model);
+					rlObj.setAnimation(modelAnim);
+					rlObj.setShouldLoop(true);
 				}
 	
 				if( modelLocation == null ){ 
@@ -481,49 +497,84 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 		configManager.setConfiguration(CONFIG_GROUP, REGION_PREFIX + regionId, json);
 	}
 
-	private void remodelTile(MarkerPoint existing, int newModelId, LocalPoint localPoint){
+	private void remodelTile(MarkerPoint existing, MarkerOption newMarker, LocalPoint localPoint){
 		Collection<MarkerPoint> tempPoints = new ArrayList<>(getPoints(existing.getRegionID()));
-		var newPoint = new MarkerPoint(existing.getRegionID(), existing.getRegionX(), existing.getRegionY(), existing.getZ(), newModelId, getOrientation(currentModelOrientationOffset, localPoint));
+		var newPoint = new MarkerPoint(
+			existing.getRegionID(), 
+			existing.getRegionX(), 
+			existing.getRegionY(), 
+			existing.getZ(), 
+			newMarker.modelID, 
+			getOrientation(newMarker.orientationOffset, localPoint), 
+			newMarker.animation, 
+			newMarker.colorsToReplace, 
+			newMarker.colorsToFind);
 		tempPoints.remove(newPoint);
 		tempPoints.add(newPoint);
 		saveMarkers(existing.getRegionID(), tempPoints);
 		loadMarkers();
 	}
 
-	private void markTile(LocalPoint localPoint, int modelId)
+	private void markTile(LocalPoint localPoint, MarkerOption markerInfo)
 	{	
 		if (localPoint == null)
 		{
 			return;
 		}
-
+		
 		WorldPoint worldPoint = WorldPoint.fromLocalInstance(client, localPoint);
 
 		int regionId = worldPoint.getRegionID();
 
-		int orientation = getOrientation(currentModelOrientationOffset, localPoint);
-
-		MarkerPoint point = new MarkerPoint(regionId, worldPoint.getRegionX(), worldPoint.getRegionY(), worldPoint.getPlane(), modelId, orientation);
-		log.debug("Updating point: {} - {}", point, worldPoint);
-
 		List<MarkerPoint> tempPoints = new ArrayList<>(getPoints(regionId));
-		if(tempPoints.contains(point)){
+
+		if(markerInfo == null){
+			MarkerPoint point = new MarkerPoint(
+			regionId, 
+			worldPoint.getRegionX(), 
+			worldPoint.getRegionY(),
+			worldPoint.getPlane(), 
+			0, 
+			0, 
+			0, 
+			null, 
+			null);
 			tempPoints.remove(point);
 			List<RuneLiteObject> affectedObjects = objects.get(point);
 			for (RuneLiteObject obj : affectedObjects) {
 				obj.setActive(false);
 			}
 			objects.remove(point);
-		}else{
-			tempPoints.add(point);
+
+			saveMarkers(regionId, tempPoints);
+	
+			loadMarkers();
+			return;
 		}
+
+
+		int orientation = getOrientation(markerInfo.orientationOffset, localPoint);
+
+		MarkerPoint point = new MarkerPoint(
+			regionId, 
+			worldPoint.getRegionX(), 
+			worldPoint.getRegionY(),
+			worldPoint.getPlane(), 
+			markerInfo.modelID, 
+			orientation, 
+			markerInfo.animation, 
+			markerInfo.colorsToReplace, 
+			markerInfo.colorsToFind);
+		log.debug("Updating point: {} - {}", point, worldPoint);
+
+		tempPoints.add(point);
 
 		saveMarkers(regionId, tempPoints);
 
 		loadMarkers();
 	}
 
-	void startPlacingTile(int modelID, int orientationOffset){
+	void startPlacingTile(MarkerOption newMarker){
 
 		if (client.getGameState() != GameState.LOGGED_IN){
 			return;
@@ -534,7 +585,12 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 			if(Instant.now().isAfter(loadTimeOutInstant)){
 				return true;
 			}
-			Model model = client.loadModel(modelID);
+			Model model; ;
+			if(newMarker.colorsToFind == null || newMarker.colorsToFind.length == 0 || newMarker.colorsToReplace == null || newMarker.colorsToReplace.length == 0 || newMarker.colorsToFind.length != newMarker.colorsToReplace.length){
+				model = client.loadModel(newMarker.modelID);
+			}else{
+				model = client.loadModel(newMarker.modelID, newMarker.colorsToFind, newMarker.colorsToReplace);
+			}
 			placingObject = client.createRuneLiteObject();
 			LocalPoint modelLocation = client.getLocalPlayer().getLocalLocation();
 
@@ -544,10 +600,9 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 			placingObject.setModel(model);
 			placingObject.setLocation(modelLocation, client.getLocalPlayer().getWorldLocation().getPlane());
 			placingObject.setActive(true);
-			placingObject.setOrientation(getOrientation(orientationOffset, modelLocation));
+			placingObject.setOrientation(getOrientation(newMarker.orientationOffset, modelLocation));
 			isPlacingTile = true;
-			currentModelOrientationOffset = orientationOffset;
-			latestModel = modelID;
+			markerToPlace = newMarker;
 			return true;
 		});
 	}
@@ -615,7 +670,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 		}
 		if(!isWalkable) return;
 
-		if(isPlacingTile && latestModel != -1){
+		if(isPlacingTile && markerToPlace != null){
 
 			final WorldPoint worldPoint = WorldPoint.fromLocalInstance(client, selectedSceneTile.getLocalLocation());
 			final int regionID = worldPoint.getRegionID();
@@ -632,7 +687,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 				.setType(MenuAction.RUNELITE_HIGH_PRIORITY)
 				.onClick(e -> {
 					Tile target = client.getSelectedSceneTile();
-					remodelTile(existing, latestModel, target.getLocalLocation());
+					remodelTile(existing, markerToPlace, target.getLocalLocation());
 					if(!shiftPressed){
 						stopPlacing();
 					}
@@ -646,7 +701,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 					Tile target = client.getSelectedSceneTile();
 					if (target != null)
 					{	
-						markTile(target.getLocalLocation(), latestModel);
+						markTile(target.getLocalLocation(), markerToPlace);
 					}
 					if(!shiftPressed){
 						stopPlacing();
@@ -685,7 +740,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 					Tile target = client.getSelectedSceneTile();
 					if (target != null)
 					{	
-						markTile(target.getLocalLocation(), 1);
+						markTile(target.getLocalLocation(), null);
 					}
 				});
 		
