@@ -1,27 +1,64 @@
+/*
+ * Copyright (c) 2021, Adam <Adam@sigterm.info>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 package com.ImmersiveGroundMarkers;
 
 import java.applet.Applet;
+import java.awt.Toolkit;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import com.google.inject.Provides;
 import com.ImmersiveGroundMarkers.ImmersiveGroundMarkersConfig.OrientationMethod;
 import com.google.common.base.Strings;
+import com.google.common.util.concurrent.Runnables;
+
 import javax.inject.Inject;
 
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.KeyCode;
@@ -38,10 +75,12 @@ import net.runelite.api.events.GameTick;
 import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.api.events.PostMenuSort;
 import net.runelite.client.callback.ClientThread;
+import net.runelite.client.chat.ChatMessageManager;
+import net.runelite.client.chat.QueuedMessage;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ProfileChanged;
-//import net.runelite.client.game.chatbox.ChatboxPanelManager;
+import net.runelite.client.game.chatbox.ChatboxPanelManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
@@ -70,6 +109,11 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	private ClientToolbar clientToolbar;
 
 	@Inject
+	private ChatMessageManager chatMessageManager;
+
+	@Inject ChatboxPanelManager chatboxPanelManager;
+
+	@Inject
 	private Gson gson;
 
 	private int lastPlane = -1;
@@ -88,7 +132,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	private static final String ORIENTATION_CONFIG = "markerOrientation";
 
 	private final List<MarkerPoint> markers = new ArrayList<>();
-	private final LinkedHashMap<MarkerPoint, RuneLiteObject> objects = new LinkedHashMap<>();
+	private final Map<MarkerPoint, List<RuneLiteObject>> objects = new LinkedHashMap<>();
 
 	@Setter
 	private boolean shiftPressed = false;
@@ -103,6 +147,139 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 
 	@Getter
 	private OrientationMethod orientationMethod;
+
+	public void clearMarkers(){
+		int[] regions = client.getMapRegions();
+		if(regions == null){
+			return;
+		}
+		for(int region : regions){
+			configManager.unsetConfiguration(CONFIG_GROUP, REGION_PREFIX + region);
+		}
+		removeObjects();
+		loadMarkers();
+	}
+
+	//Copy of Runelite ground markers export
+	public void exportMarkers(){
+		int[] regions = client.getMapRegions();
+		if(regions == null){
+			return;
+		}
+
+		List<MarkerPoint> activePoints = Arrays.stream(regions)
+			.mapToObj(region -> getPoints(region).stream())
+			.flatMap(Function.identity())
+			.collect(Collectors.toList());
+
+		if(activePoints.isEmpty()){
+			sendChatMessage("You have no ground markers to export.");
+			return;
+		}
+
+		final String exportDump = gson.toJson(activePoints);
+
+		Toolkit.getDefaultToolkit()
+			.getSystemClipboard()
+			.setContents(new StringSelection(exportDump), null);
+		
+		sendChatMessage(activePoints.size() + " ground markers were copied to your clipboard.");
+	}
+
+	protected void promptForImport()
+	{
+		final String clipboardText;
+		try
+		{
+			clipboardText = Toolkit.getDefaultToolkit()
+				.getSystemClipboard()
+				.getData(DataFlavor.stringFlavor)
+				.toString();
+		}
+		catch (IOException | UnsupportedFlavorException ex)
+		{
+			sendChatMessage("Unable to read system clipboard.");
+			log.warn("error reading clipboard", ex);
+			return;
+		}
+
+		log.debug("Clipboard contents: {}", clipboardText);
+		if (Strings.isNullOrEmpty(clipboardText))
+		{
+			sendChatMessage("You do not have any ground markers copied in your clipboard.");
+			return;
+		}
+
+		List<MarkerPoint> importPoints;
+		try
+		{
+			// CHECKSTYLE:OFF
+			importPoints = gson.fromJson(clipboardText, new TypeToken<List<MarkerPoint>>(){}.getType());
+			// CHECKSTYLE:ON
+		}
+		catch (JsonSyntaxException e)
+		{
+			log.debug("Malformed JSON for clipboard import", e);
+			sendChatMessage("You do not have any ground markers copied in your clipboard.");
+			return;
+		}
+
+		if (importPoints.isEmpty())
+		{
+			sendChatMessage("You do not have any ground markers copied in your clipboard.");
+			return;
+		}
+
+		chatboxPanelManager.openTextMenuInput("Are you sure you want to import " + importPoints.size() + " ground markers?")
+			.option("Yes", () -> importGroundMarkers(importPoints))
+			.option("No", Runnables.doNothing())
+			.build();
+	}
+
+	public void importGroundMarkers(List<MarkerPoint> points){
+		// regions being imported may not be loaded on client,
+		// so need to import each bunch directly into the config
+		// first, collate the list of unique region ids in the import
+		Map<Integer, List<MarkerPoint>> regionGroupedPoints = points.stream()
+			.collect(Collectors.groupingBy(MarkerPoint::getRegionID));
+
+		// now import each region into the config
+		regionGroupedPoints.forEach((regionId, groupedPoints) ->
+		{
+			// combine imported points with existing region points
+			log.debug("Importing {} points to region {}", groupedPoints.size(), regionId);
+			Collection<MarkerPoint> regionPoints = getPoints(regionId);
+
+			List<MarkerPoint> mergedList = new ArrayList<>(regionPoints.size() + groupedPoints.size());
+			// add existing points
+			mergedList.addAll(regionPoints);
+
+			// add new points
+			for (MarkerPoint point : groupedPoints)
+			{
+				// filter out duplicates
+				if (!mergedList.contains(point))
+				{
+					mergedList.add(point);
+				}
+			}
+
+			saveMarkers(regionId, mergedList);
+		});
+
+		// reload points from config
+		log.debug("Reloading points after import");
+		loadMarkers();
+		sendChatMessage(points.size() + " ground markers were imported from the clipboard.");
+	}
+
+	public void sendChatMessage(final String message){
+		chatMessageManager.queue(QueuedMessage.builder()
+			.type(ChatMessageType.CONSOLE)
+			.runeLiteFormattedMessage(message)
+			.build()
+			);
+	}
 
 	public void setOrientationMethod(OrientationMethod newMethod){
 		orientationMethod = newMethod;
@@ -120,7 +297,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 				orientationMethod = OrientationMethod.RANDOM;
 			}
 		}
-		panel = new PropSelectPanel(this);
+		panel = new PropSelectPanel(this, chatboxPanelManager);
 		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "icon.png");
 		
 		navButton = NavigationButton.builder()
@@ -256,16 +433,18 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 				rlObj.setLocation(modelLocation, localWP.getPlane());
 				rlObj.setActive(true);
 				rlObj.setOrientation(marker.getOrientation());
-	
-				objects.put(marker, rlObj);
+				
+				if(!objects.containsKey(marker)){
+					List<RuneLiteObject> newList = new ArrayList<>();
+					objects.put(marker, newList);
+				}
+				objects.get(marker).add(rlObj);
 			}
 		}
 	}
 
 	void loadMarkers(){
-		markers.clear();
 		removeObjects();
-		objects.clear();
 
 		int[] regions = client.getMapRegions();
 
@@ -283,13 +462,14 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	}
 
 	void removeObjects(){
-		for(MarkerPoint marker : markers){
-			objects.get(marker).setActive(false);
-		}
 		Set<MarkerPoint> keys = objects.keySet();
 		for(MarkerPoint key : keys){
-			objects.get(key).setActive(false);
+			for(RuneLiteObject obj : objects.get(key)){
+				obj.setActive(false);
+			}
 		}
+		objects.clear();
+		markers.clear();
 	}
 
 	void saveMarkers(int regionId, Collection<MarkerPoint> markers){
@@ -329,7 +509,10 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 		List<MarkerPoint> tempPoints = new ArrayList<>(getPoints(regionId));
 		if(tempPoints.contains(point)){
 			tempPoints.remove(point);
-			objects.get(point).setActive(false);
+			List<RuneLiteObject> affectedObjects = objects.get(point);
+			for (RuneLiteObject obj : affectedObjects) {
+				obj.setActive(false);
+			}
 			objects.remove(point);
 		}else{
 			tempPoints.add(point);

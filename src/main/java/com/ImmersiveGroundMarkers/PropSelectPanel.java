@@ -1,6 +1,6 @@
 package com.ImmersiveGroundMarkers;
 
-import net.runelite.api.KeyCode;
+import net.runelite.client.game.chatbox.ChatboxPanelManager;
 import net.runelite.client.input.KeyListener;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.util.ImageUtil;
@@ -20,14 +20,17 @@ import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
+import javax.swing.GroupLayout.Alignment;
 import javax.swing.border.EmptyBorder;
 
 import com.ImmersiveGroundMarkers.ImmersiveGroundMarkersConfig.OrientationMethod;
+import com.google.common.util.concurrent.Runnables;
 
 
 public class PropSelectPanel extends PluginPanel implements KeyListener{
 
     private final ImmersiveGroundMarkersPlugin plugin;
+    private final ChatboxPanelManager chatboxPanelManager;
 
     private JLabel panelTitle;
 
@@ -51,29 +54,46 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
     private JLabel groupTitle;
     private JButton nextGroupButton;
 
+    private JButton clearMarkersButton;
+    private JButton exportMarkersButton;
+    private JButton importMarkersButton;
+
     private JPanel propButtonsPanel;
 
     private MarkerPack currentPack;
 
-    public PropSelectPanel(ImmersiveGroundMarkersPlugin plugin){
+    public PropSelectPanel(ImmersiveGroundMarkersPlugin plugin, ChatboxPanelManager chatboxPanelManager){
         this.plugin = plugin;
+        this.chatboxPanelManager = chatboxPanelManager;
 
         currentPack = MarkerPack.ROCKS;
 
         GroupLayout fullLayout = new GroupLayout(this);
+        fullLayout.setAutoCreateGaps(true);
         
+        clearMarkersButton = new JButton("Clear");
+        clearMarkersButton.setToolTipText("Clears all markers in loaded regions.\nWill check for confirmation.");
+        clearMarkersButton.addActionListener(l -> {
+            chatboxPanelManager.openTextMenuInput("Are you sure you want to clear all loaded ground markers?")
+			.option("Yes", () -> plugin.clearMarkers())
+			.option("No", Runnables.doNothing())
+			.build();
+        });
+        exportMarkersButton = new JButton("Export");
+        exportMarkersButton.setToolTipText("Export all markers in loaded regions to the clipboard.");
+        exportMarkersButton.addActionListener(l -> plugin.exportMarkers());
+        importMarkersButton = new JButton("Import");
+        importMarkersButton.setToolTipText("Import markers from clipboard.\nWill check for confirmation.");
+        importMarkersButton.addActionListener(l -> plugin.promptForImport());
+
         panelTitle = new JLabel("Orientation");
-        panelTitle.setBorder(new EmptyBorder(4,0,4,0));
 
         setLayout(fullLayout);
-        setBorder(new EmptyBorder(4,4,4,4));
 
         orientationButtonPanel = new JPanel();
         GroupLayout orientationLayout = new GroupLayout(orientationButtonPanel);
 
         orientationButtonPanel.setLayout(orientationLayout);
-        orientationButtonPanel.setBorder(new EmptyBorder(2,2,2,2));
-        orientationButtonPanel.setSize(180, 200);
 
         orientationSelectionGroup = new ButtonGroup();
 
@@ -128,17 +148,17 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
 
         orientationLayout.setVerticalGroup(
             orientationLayout.createSequentialGroup()
-            .addGroup(orientationLayout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+            .addGroup(orientationLayout.createParallelGroup()
             .addComponent(FaceSameAsPlayerButton, vMin, vPref, vMax)
             .addComponent(NorthButton, vMin, vPref, vMax)
             .addComponent(FacePlayerButton, vMin, vPref, vMax))
 
-            .addGroup(orientationLayout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+            .addGroup(orientationLayout.createParallelGroup()
             .addComponent(WestButton, vMin, vPref, vMax)
             .addComponent(RandomButton, vMin, vPref, vMax)
             .addComponent(EastButton, vMin, vPref, vMax))
 
-            .addGroup(orientationLayout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+            .addGroup(orientationLayout.createParallelGroup()
             .addComponent(FaceOppositePlayerButton, vMin, vPref, vMax)
             .addComponent(SouthButton, vMin, vPref, vMax)
             .addComponent(FaceAwayFromPlayerButton, vMin, vPref, vMax))
@@ -146,17 +166,17 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
 
         orientationLayout.setHorizontalGroup(
             orientationLayout.createSequentialGroup()
-            .addGroup(orientationLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+            .addGroup(orientationLayout.createParallelGroup()
             .addComponent(FaceSameAsPlayerButton, hMin, hPref, hMax)
             .addComponent(WestButton, hMin, hPref, hMax)
             .addComponent(FaceOppositePlayerButton, hMin, hPref, hMax))
 
-            .addGroup(orientationLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+            .addGroup(orientationLayout.createParallelGroup()
             .addComponent(NorthButton, hMin, hPref, hMax)
             .addComponent(RandomButton, hMin, hPref, hMax)
             .addComponent(SouthButton, hMin, hPref, hMax))
 
-            .addGroup(orientationLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+            .addGroup(orientationLayout.createParallelGroup()
             .addComponent(FacePlayerButton, hMin, hPref, hMax)
             .addComponent(EastButton, hMin, hPref, hMax)
             .addComponent(FaceAwayFromPlayerButton, hMin, hPref, hMax))
@@ -210,7 +230,13 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
         propButtonsPanel = new JPanel();
         generatePropButtons();
 
+
         fullLayout.setHorizontalGroup(fullLayout.createParallelGroup(GroupLayout.Alignment.CENTER)
+        .addGroup(fullLayout.createSequentialGroup()
+            .addComponent(exportMarkersButton)
+            .addComponent(importMarkersButton)
+            .addComponent(clearMarkersButton)
+        )
         .addComponent(panelTitle)
         .addComponent(orientationButtonPanel)
         .addComponent(groupControlPanel)
@@ -218,6 +244,11 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
         );
         
         fullLayout.setVerticalGroup(fullLayout.createSequentialGroup()
+        .addGroup(fullLayout.createParallelGroup()
+            .addComponent(exportMarkersButton)
+            .addComponent(importMarkersButton)
+            .addComponent(clearMarkersButton)
+        )
         .addComponent(panelTitle)
         .addComponent(orientationButtonPanel)
         .addComponent(groupControlPanel)
@@ -270,7 +301,7 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
     void generatePropButtons(){
         propButtonsPanel.removeAll();
         int propCount = currentPack.markers.length;
-        propButtonsPanel.setLayout(new GridLayout(propCount/4 + (propCount%4 != 0 ? 1 : 0), 4));
+        propButtonsPanel.setLayout(new GridLayout(0, 4, 2,2));
 
         BufferedImage defaultIcon = ImageUtil.loadImageResource(getClass(), "icon.png");
 
