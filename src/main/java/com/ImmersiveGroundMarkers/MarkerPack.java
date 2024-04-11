@@ -99,7 +99,8 @@ public enum MarkerPack {
         new MarkerOption("Blood Splat 3", 35395, 1280),
         new MarkerOption("Miasma", 29475),
         new MarkerOption("Poison", 36159, 1024),
-        new MarkerOption("Ritual Star", 1131)
+        new MarkerOption("Ritual Star", 1131),
+        new MarkerOption("Grave", 40589, 1024)
     ),
     MAGIC("Magical effects",
         new MarkerOption("Ancient Essence", 47096),
@@ -109,23 +110,67 @@ public enum MarkerPack {
         new MarkerOption("Golden Glow", 3567),
         new MarkerOption("Arcane Circle", 3094)
     ),
+    CRITTERS("Critters",
+        new MarkerOption("Butterfly", 3023, 1024),
+        new MarkerOption("Puffin", 22792, 1024),
+        new MarkerOption("Seagull", 26874, 1024),
+        new MarkerOption("Squirrel", 11723, 1024),
+        new MarkerOption("Racoon", 11724, 1024),
+        new MarkerOption("Ferret", 19373, 1024),
+        //new MarkerOption("Crab", 0),//TODO: Multimodel
+        new MarkerOption("Rat", 9610, 1024),
+        new MarkerOption("Duckling", 26872, 1024),
+        new MarkerOption("Spiderling", 47399, 1024),
+        new MarkerOption("Grey Chinchompa", 19371, 1024), //TODO: Model Colours
+        new MarkerOption("Scorpion", 24612, 1024),
+        new MarkerOption("Pet Rock", 4271, 1024),
+        new MarkerOption("Crow", 26851, 1024),
+        new MarkerOption("Monkey", 7744, 1024),
+        //new MarkerOption("Kebbit", 0),//TODO: Multimodel
+        //new MarkerOption("Salamander", 19391), TODO: Model Colours
+        new MarkerOption("Piglet", 7364, 1024),
+        new MarkerOption("Balloon Animal", 10736, 1024)
+    ),
     MISCELLANEOUS("Miscellaneous",
         new MarkerOption("Rope", 21517),
         new MarkerOption("Cannonballs", 16517),
         new MarkerOption("Scroll", 10347, 1024),
         new MarkerOption("Potion", 1736),
         new MarkerOption("Spotlight", 3698, 1536)
+    ),
+    /*SHADOWS("Shades", //TODO: Model Colours
+        new MarkerOption("", 0),
+        new MarkerOption("", 0),
+        new MarkerOption("", 0),
+        new MarkerOption("", 0),
+        new MarkerOption("", 0)
+    )*/
+    HANANNIE("Hanannie",
+        new MarkerOption("Entling", 49908, 1024),
+        new MarkerOption("Cat on stool", 42214, 768),
+        new MarkerOption("Goblin", 43835, 1024),
+        new MarkerOption("Swarm", 2950),
+        new MarkerOption("Duke Pet", 49195, 1024),
+        new MarkerOption("Dog", 7755, 1024),
+        new MarkerOption("Floating Fish", 13811, 1024),
+        new MarkerOption("Fake Man", 4065, 1024),
+        new MarkerOption("Rock Crab Rock", 4400),
+        //new MarkerOption("Suspect", 0), //TODO: Multimodel
+        //new MarkerOption("Leprechaun", 0), //TODO: Multimodel
+        new MarkerOption("Shark Fin", 19778, 1024),
+        new MarkerOption("Chompy Toad", 3447, 1024),
+        new MarkerOption("Fly Trap", 14207, 1024),
+        new MarkerOption("Fox Trap", 49899),
+        new MarkerOption("Toy Soldier", 13227, 1024),
+        new MarkerOption("Skavid", 20388, 1024)
     )
     ;
 
     MarkerOption[] markers;
-    //String[] names;
-    //int[] ids;
+    
     String displayName;
     private MarkerPack(String displayName, MarkerOption... options){
         this.displayName = displayName;
         this.markers = options;
-        //this.names = names;
-        //this.ids = ids;
     }
 }
