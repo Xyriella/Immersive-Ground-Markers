@@ -316,6 +316,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	protected void shutDown() throws Exception
 	{
 		removeObjects();
+		clientToolbar.removeNavigation(navButton);
 	}
 
 	@Subscribe
