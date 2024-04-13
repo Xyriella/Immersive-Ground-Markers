@@ -372,7 +372,9 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event){
-		panel.reselectOrientationButton();
+		if(event.getGroup() == CONFIG_GROUP){
+			panel.reselectOrientationButton();
+		}
 	}
 
 	@Provides
