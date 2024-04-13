@@ -149,7 +149,7 @@ public enum MarkerPack {
     )*/
     HANANNIE("Hanannie",
         new MarkerOption("Entling", 49908, 1024, 10537),
-        new MarkerOption("Cat on stool", 42214, 768, 8231),
+        new MarkerOption("Cat on Stool", 42214, 768, 8231),
         new MarkerOption("Goblin", 43835, 1024, 6181),
         new MarkerOption("Swarm", 2950, 0, 0),
         new MarkerOption("Duke Pet", 49195, 1024, 10217),

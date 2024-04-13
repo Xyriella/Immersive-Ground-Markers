@@ -408,6 +408,11 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 			short[] findColors = marker.getColorsToFind();
 			short[] replaceColors = marker.getColorsToReplace();
 
+			if( !client.isClientThread() ){
+				log.debug("Not on client thread");
+				return;
+			}
+
 			Model model = client.loadModel(modelId, findColors, replaceColors);
 			if(model == null) continue;
 			Animation modelAnim = client.loadAnimation(animationId);
