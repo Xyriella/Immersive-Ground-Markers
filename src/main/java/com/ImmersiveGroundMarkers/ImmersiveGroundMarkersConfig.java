@@ -2,6 +2,7 @@ package com.ImmersiveGroundMarkers;
 
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
+import net.runelite.client.config.ConfigItem;
 
 @ConfigGroup("ImmersiveGroundMarkers")
 public interface ImmersiveGroundMarkersConfig extends Config
@@ -19,12 +20,13 @@ public interface ImmersiveGroundMarkersConfig extends Config
         WEST;
 	}
 
+	@ConfigItem(
+		keyName = "markerOrientation", 
+		name = "Marker Orientation", 
+		description = "What angle to place markers at"
+	)
 	default OrientationMethod markerOrientation(){
 		return OrientationMethod.RANDOM;
-	}
-
-	default MarkerPack markerPack(){
-		return MarkerPack.ROCKS;
 	}
 
 }

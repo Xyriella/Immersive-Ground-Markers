@@ -34,15 +34,15 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
     private final JPanel orientationButtonPanel;
     private final ButtonGroup orientationSelectionGroup;
 
-    private final JButton NorthButton;
-    private final JButton EastButton;
-    private final JButton SouthButton;
-    private final JButton WestButton;
-    private final JButton FacePlayerButton;
-    private final JButton FaceAwayFromPlayerButton;
-    private final JButton FaceSameAsPlayerButton;
-    private final JButton FaceOppositePlayerButton;
-    private final JButton RandomButton;
+    private final JButton northButton;
+    private final JButton eastButton;
+    private final JButton southButton;
+    private final JButton westButton;
+    private final JButton facePlayerButton;
+    private final JButton faceAwayFromPlayerButton;
+    private final JButton faceSameAsPlayerButton;
+    private final JButton faceOppositePlayerButton;
+    private final JButton randomButton;
 
     private JButton prevButton;
 
@@ -93,51 +93,52 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
 
         orientationSelectionGroup = new ButtonGroup();
 
-        NorthButton = new JButton("North");
-        setupButton(NorthButton, OrientationMethod.NORTH);
-        NorthButton.setToolTipText("Point North");
+        northButton = new JButton("North");
+        setupButton(northButton, OrientationMethod.NORTH);
+        northButton.setToolTipText("Point North");
 
-        EastButton = new JButton("East");
-        setupButton(EastButton, OrientationMethod.EAST);
-        EastButton.setToolTipText("Point East");
+        eastButton = new JButton("East");
+        setupButton(eastButton, OrientationMethod.EAST);
+        eastButton.setToolTipText("Point East");
         
-        SouthButton = new JButton("South");
-        setupButton(SouthButton, OrientationMethod.SOUTH);
-        SouthButton.setToolTipText("Point South");
+        southButton = new JButton("South");
+        setupButton(southButton, OrientationMethod.SOUTH);
+        southButton.setToolTipText("Point South");
 
-        WestButton = new JButton("West");
-        setupButton(WestButton, OrientationMethod.WEST);
-        WestButton.setToolTipText("Point West");
+        westButton = new JButton("West");
+        setupButton(westButton, OrientationMethod.WEST);
+        westButton.setToolTipText("Point West");
 
-        FacePlayerButton = new JButton("Towards");
-        setupButton(FacePlayerButton, OrientationMethod.FACE_PLAYER);
-        FacePlayerButton.setToolTipText("Point towards the Player");
+        facePlayerButton = new JButton("Towards");
+        setupButton(facePlayerButton, OrientationMethod.FACE_PLAYER);
+        facePlayerButton.setToolTipText("Point towards the Player");
 
-        FaceAwayFromPlayerButton = new JButton("Away");
-        setupButton(FaceAwayFromPlayerButton, OrientationMethod.FACE_AWAY_PLAYER);
-        FaceAwayFromPlayerButton.setToolTipText("Point away from the Player");
+        faceAwayFromPlayerButton = new JButton("Away");
+        setupButton(faceAwayFromPlayerButton, OrientationMethod.FACE_AWAY_PLAYER);
+        faceAwayFromPlayerButton.setToolTipText("Point away from the Player");
 
-        FaceSameAsPlayerButton = new JButton("Match");
-        setupButton(FaceSameAsPlayerButton, OrientationMethod.MATCH_PLAYER);
-        FaceSameAsPlayerButton.setToolTipText("Point the same way the Player is facing");
+        faceSameAsPlayerButton = new JButton("Match");
+        setupButton(faceSameAsPlayerButton, OrientationMethod.MATCH_PLAYER);
+        faceSameAsPlayerButton.setToolTipText("Point the same way the Player is facing");
 
-        FaceOppositePlayerButton = new JButton("Oppose");
-        setupButton(FaceOppositePlayerButton, OrientationMethod.OPPOSE_PLAYER);
-        FaceOppositePlayerButton.setToolTipText("Point the opposite way the Player is facing");
+        faceOppositePlayerButton = new JButton("Oppose");
+        setupButton(faceOppositePlayerButton, OrientationMethod.OPPOSE_PLAYER);
+        faceOppositePlayerButton.setToolTipText("Point the opposite way the Player is facing");
 
-        RandomButton = new JButton("Random");
-        setupButton(RandomButton, OrientationMethod.RANDOM);
-        RandomButton.setToolTipText("Point in a random direction");
+        randomButton = new JButton("Random");
+        setupButton(randomButton, OrientationMethod.RANDOM);
+        randomButton.setToolTipText("Point in a random direction");
 
-        orientationSelectionGroup.add(NorthButton);
-        orientationSelectionGroup.add(EastButton);
-        orientationSelectionGroup.add(SouthButton);
-        orientationSelectionGroup.add(WestButton);
-        orientationSelectionGroup.add(FacePlayerButton);
-        orientationSelectionGroup.add(FaceAwayFromPlayerButton);
-        orientationSelectionGroup.add(FaceSameAsPlayerButton);
-        orientationSelectionGroup.add(FaceOppositePlayerButton);
-        orientationSelectionGroup.add(RandomButton);
+        orientationSelectionGroup.add(northButton);
+        orientationSelectionGroup.add(eastButton);
+        orientationSelectionGroup.add(southButton);
+        orientationSelectionGroup.add(westButton);
+        orientationSelectionGroup.add(facePlayerButton);
+        orientationSelectionGroup.add(faceAwayFromPlayerButton);
+        orientationSelectionGroup.add(faceSameAsPlayerButton);
+        orientationSelectionGroup.add(faceOppositePlayerButton);
+        orientationSelectionGroup.add(randomButton);
+        reselectOrientationButton();
 
         final int hMin = 0, hPref = 40, hMax = 95;
         final int vMin = 0, vPref = 40, vMax = 60;
@@ -145,37 +146,37 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
         orientationLayout.setVerticalGroup(
             orientationLayout.createSequentialGroup()
             .addGroup(orientationLayout.createParallelGroup()
-            .addComponent(FaceSameAsPlayerButton, vMin, vPref, vMax)
-            .addComponent(NorthButton, vMin, vPref, vMax)
-            .addComponent(FacePlayerButton, vMin, vPref, vMax))
+            .addComponent(faceSameAsPlayerButton, vMin, vPref, vMax)
+            .addComponent(northButton, vMin, vPref, vMax)
+            .addComponent(facePlayerButton, vMin, vPref, vMax))
 
             .addGroup(orientationLayout.createParallelGroup()
-            .addComponent(WestButton, vMin, vPref, vMax)
-            .addComponent(RandomButton, vMin, vPref, vMax)
-            .addComponent(EastButton, vMin, vPref, vMax))
+            .addComponent(westButton, vMin, vPref, vMax)
+            .addComponent(randomButton, vMin, vPref, vMax)
+            .addComponent(eastButton, vMin, vPref, vMax))
 
             .addGroup(orientationLayout.createParallelGroup()
-            .addComponent(FaceOppositePlayerButton, vMin, vPref, vMax)
-            .addComponent(SouthButton, vMin, vPref, vMax)
-            .addComponent(FaceAwayFromPlayerButton, vMin, vPref, vMax))
+            .addComponent(faceOppositePlayerButton, vMin, vPref, vMax)
+            .addComponent(southButton, vMin, vPref, vMax)
+            .addComponent(faceAwayFromPlayerButton, vMin, vPref, vMax))
         );
 
         orientationLayout.setHorizontalGroup(
             orientationLayout.createSequentialGroup()
             .addGroup(orientationLayout.createParallelGroup()
-            .addComponent(FaceSameAsPlayerButton, hMin, hPref, hMax)
-            .addComponent(WestButton, hMin, hPref, hMax)
-            .addComponent(FaceOppositePlayerButton, hMin, hPref, hMax))
+            .addComponent(faceSameAsPlayerButton, hMin, hPref, hMax)
+            .addComponent(westButton, hMin, hPref, hMax)
+            .addComponent(faceOppositePlayerButton, hMin, hPref, hMax))
 
             .addGroup(orientationLayout.createParallelGroup()
-            .addComponent(NorthButton, hMin, hPref, hMax)
-            .addComponent(RandomButton, hMin, hPref, hMax)
-            .addComponent(SouthButton, hMin, hPref, hMax))
+            .addComponent(northButton, hMin, hPref, hMax)
+            .addComponent(randomButton, hMin, hPref, hMax)
+            .addComponent(southButton, hMin, hPref, hMax))
 
             .addGroup(orientationLayout.createParallelGroup()
-            .addComponent(FacePlayerButton, hMin, hPref, hMax)
-            .addComponent(EastButton, hMin, hPref, hMax)
-            .addComponent(FaceAwayFromPlayerButton, hMin, hPref, hMax))
+            .addComponent(facePlayerButton, hMin, hPref, hMax)
+            .addComponent(eastButton, hMin, hPref, hMax)
+            .addComponent(faceAwayFromPlayerButton, hMin, hPref, hMax))
         );
 
         groupControlPanel = new JPanel();
@@ -287,10 +288,57 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
             prevButton = newButton;
         });
         button.setBorder(new EmptyBorder(2,2,2,2));
-        button.setSelected(plugin.getOrientationMethod() == direction);
         button.addKeyListener(this);
         if(button.isSelected()){
             prevButton = button;
+        }
+    }
+
+    public void reselectOrientationButton(){
+        orientationSelectionGroup.clearSelection();
+        if(prevButton != null){
+            prevButton.setSelected(false);
+        }
+        switch(plugin.getOrientationMethod()){
+            case EAST:
+                eastButton.setSelected(true);
+                prevButton = eastButton;
+                break;
+            case FACE_AWAY_PLAYER:
+                faceAwayFromPlayerButton.setSelected(true);
+                prevButton = faceAwayFromPlayerButton;
+                break;
+            case FACE_PLAYER:
+                facePlayerButton.setSelected(true);
+                prevButton = facePlayerButton;
+                break;
+            case MATCH_PLAYER:
+                faceSameAsPlayerButton.setSelected(true);
+                prevButton = faceSameAsPlayerButton;
+                break;
+            case NORTH:
+                northButton.setSelected(true);
+                prevButton = northButton;
+                break;
+            case OPPOSE_PLAYER:
+                faceOppositePlayerButton.setSelected(true);
+                prevButton = faceOppositePlayerButton;
+                break;
+            case RANDOM:
+                randomButton.setSelected(true);
+                prevButton = randomButton;
+                break;
+            case SOUTH:
+                southButton.setSelected(true);
+                prevButton = southButton;
+                break;
+            case WEST:
+                westButton.setSelected(true);
+                prevButton = westButton;
+                break;
+            default:
+                break;
+
         }
     }
 

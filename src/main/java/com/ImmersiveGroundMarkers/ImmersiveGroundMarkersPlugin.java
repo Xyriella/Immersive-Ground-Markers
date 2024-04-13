@@ -54,7 +54,6 @@ import com.google.common.util.concurrent.Runnables;
 
 import javax.inject.Inject;
 
-import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Animation;
@@ -79,6 +78,7 @@ import net.runelite.client.chat.ChatMessageManager;
 import net.runelite.client.chat.QueuedMessage;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.events.ProfileChanged;
 import net.runelite.client.game.chatbox.ChatboxPanelManager;
 import net.runelite.client.plugins.Plugin;
@@ -144,9 +144,6 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 
 	private PropSelectPanel panel;
 	private NavigationButton navButton;
-
-	@Getter
-	private OrientationMethod orientationMethod;
 
 	public void clearMarkers(){
 		int[] regions = client.getMapRegions();
@@ -281,22 +278,17 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 			);
 	}
 
-	public void setOrientationMethod(OrientationMethod newMethod){
-		orientationMethod = newMethod;
-		configManager.setConfiguration(CONFIG_GROUP, ORIENTATION_CONFIG, newMethod);
+	public OrientationMethod getOrientationMethod(){
+		return config.markerOrientation();
 	}
 
+	public void setOrientationMethod(OrientationMethod newMethod){
+		configManager.setConfiguration(CONFIG_GROUP, ORIENTATION_CONFIG, newMethod);
+	}
+	
 	@Override
 	protected void startUp() throws Exception
-	{	
-
-		orientationMethod = OrientationMethod.valueOf(configManager.getConfiguration(CONFIG_GROUP, ORIENTATION_CONFIG));
-		if(orientationMethod == null){
-			orientationMethod = config.markerOrientation();
-			if(orientationMethod == null){
-				orientationMethod = OrientationMethod.RANDOM;
-			}
-		}
+	{
 		panel = new PropSelectPanel(this, chatboxPanelManager);
 		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "icon.png");
 		
@@ -307,9 +299,6 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 		.build();
 
 		clientToolbar.addNavigation(navButton);
-
-
-		loadMarkers();
 	}
 
 	@Override
@@ -337,7 +326,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 		if(isPlacingTile && placingObject != null){
 			final Tile hoveredTile = client.getSelectedSceneTile();
 			placingObject.setLocation(hoveredTile.getLocalLocation(), hoveredTile.getPlane());
-			if(orientationMethod != OrientationMethod.RANDOM) placingObject.setOrientation(getOrientation(markerToPlace.orientationOffset, hoveredTile.getLocalLocation()));
+			if( config.markerOrientation() != OrientationMethod.RANDOM) placingObject.setOrientation(getOrientation(markerToPlace.orientationOffset, hoveredTile.getLocalLocation()));
 		}
 		
 
@@ -379,6 +368,11 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 
 		// map region has just been updated
 		loadMarkers();
+	}
+
+	@Subscribe
+	public void onConfigChanged(ConfigChanged event){
+		panel.reselectOrientationButton();
 	}
 
 	@Provides
@@ -617,7 +611,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 		int xDiff;
 		int yDiff;
 		double angle;
-		switch(orientationMethod){
+		switch(config.markerOrientation()){
 			case EAST:
 				return (512 + orientationOffset) % 2048;
 			case FACE_AWAY_PLAYER:
