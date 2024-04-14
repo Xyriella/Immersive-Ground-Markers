@@ -99,8 +99,8 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	@Inject
 	private ClientThread clientThread;
 
-	@Inject
-	private ImmersiveGroundMarkersConfig config;
+	//@Inject
+	//private ImmersiveGroundMarkersConfig config;
 
 	@Inject
 	private ConfigManager configManager;
@@ -121,7 +121,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	private MarkerOption markerToPlace = null;
 
 	private boolean isPlacingTile = false;
-	//private int currentModelOrientationOffset = 0;
+	
 	private RuneLiteObject placingObject;
 
 	Random rnd = new Random();
@@ -145,6 +145,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	private PropSelectPanel panel;
 	private NavigationButton navButton;
 
+	//Unload and remove from config all markers in loaded map regions
 	public void clearMarkers(){
 		int[] regions = client.getMapRegions();
 		if(regions == null){
@@ -182,7 +183,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 		
 		sendChatMessage(activePoints.size() + " ground markers were copied to your clipboard.");
 	}
-
+	//Copy of Runelite ground markers prompt for import
 	protected void promptForImport()
 	{
 		final String clipboardText;
@@ -233,6 +234,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 			.build();
 	}
 
+	//Copy of Runelite ground markers import
 	public void importGroundMarkers(List<MarkerPoint> points){
 		// regions being imported may not be loaded on client,
 		// so need to import each bunch directly into the config
@@ -278,8 +280,13 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 			);
 	}
 
+	//Using this as opposed to config.markerOrientation as that seemed to be having delays that were messing up selection
 	public OrientationMethod getOrientationMethod(){
-		return config.markerOrientation();
+		try {
+			return OrientationMethod.valueOf(configManager.getConfiguration(CONFIG_GROUP, ORIENTATION_CONFIG));
+		} catch (Exception e) {
+			return OrientationMethod.RANDOM;
+		}
 	}
 
 	public void setOrientationMethod(OrientationMethod newMethod){
@@ -289,6 +296,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	@Override
 	protected void startUp() throws Exception
 	{
+		//Add panel to sidebar
 		panel = new PropSelectPanel(this, chatboxPanelManager);
 		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "icon.png");
 		
@@ -314,6 +322,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 		loadMarkers();
 	}
 
+	//Hide, clear and stop placing current marker
 	private void stopPlacing(){
 		isPlacingTile = false;
 		markerToPlace = null;
@@ -323,13 +332,19 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 
 	@Subscribe
 	public void onClientTick(final ClientTick event){
+
+		//Update location and orientation of marker preview
 		if(isPlacingTile && placingObject != null){
 			final Tile hoveredTile = client.getSelectedSceneTile();
 			placingObject.setLocation(hoveredTile.getLocalLocation(), hoveredTile.getPlane());
-			if( config.markerOrientation() != OrientationMethod.RANDOM) placingObject.setOrientation(getOrientation(markerToPlace.orientationOffset, hoveredTile.getLocalLocation()));
+			if( getOrientationMethod() != OrientationMethod.RANDOM){
+				placingObject.setOrientation(getOrientation(markerToPlace.orientationOffset, hoveredTile.getLocalLocation()));
+			}else{
+				placingObject.setOrientation(placingObject.getOrientation() + 10);
+			}
 		}
 		
-
+		//Delay by one client tick to account for focus switching from panel to client
 		if (client.getCanvas().isFocusOwner()){
 			if(!clientHasFocus){
 				clientHasFocus = true;
@@ -351,6 +366,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	{
 
 		//TODO: Find a way to do as it's own subscribe. Similar to GameStateChanged?
+		//Reload markers when switching planes
 		int newPlane = client.getPlane();
 		if(newPlane != lastPlane){
 			loadMarkers();
@@ -361,6 +377,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged gameStateChanged)
 	{
+		//Reload markers if state changes while logged in
 		if (gameStateChanged.getGameState() != GameState.LOGGED_IN)
 		{
 			return;
@@ -372,8 +389,18 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event){
-		if(event.getGroup() == CONFIG_GROUP && event.getKey() == ORIENTATION_CONFIG){
-			panel.reselectOrientationButton();
+		//Filter for orientation method in this plugin's config
+		if(event.getGroup().equals(CONFIG_GROUP) && event.getKey().equals(ORIENTATION_CONFIG)){
+			try {
+				OrientationMethod o = OrientationMethod.valueOf(event.getNewValue());
+				panel.reselectOrientationButton(o);
+			} catch (IllegalArgumentException e) {
+				log.debug("Failed to find Orientation method :{}", event.getNewValue());
+			} catch(NullPointerException e){
+				log.debug("Config value was null");
+			}
+		}else{
+			return;
 		}
 	}
 
@@ -383,6 +410,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 		return configManager.getConfig(ImmersiveGroundMarkersConfig.class);
 	}
 
+	//Load all saved marker points for loaded regions
 	Collection<MarkerPoint> getPoints(int regionId){
 		String json = configManager.getConfiguration(CONFIG_GROUP, REGION_PREFIX + regionId);
 
@@ -393,74 +421,79 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 		return gson.fromJson(json, new TypeToken<List<MarkerPoint>>(){}.getType());
 	}
 	
+	//Create and setup runelite objects
 	void loadObjects(Collection<MarkerPoint> points){
 		for(MarkerPoint marker : points){
 
+			//Load world point then find all instances of that in loaded regions
 			WorldPoint wp = WorldPoint.fromRegion(marker.getRegionID(), marker.getRegionX(), marker.getRegionY(), marker.getZ());
 			Collection<WorldPoint> lWorldPoints = WorldPoint.toLocalInstance(client, wp);
 
+			//Getting shorter variable names than getters
 			int modelId = marker.getModelId();
 			int animationId = marker.getAnimation();
 			short[] findColors = marker.getColorsToFind();
 			short[] replaceColors = marker.getColorsToReplace();
 
+			//Prevent crashes when trying to load models off client thread
 			if( !client.isClientThread() ){
 				log.debug("Not on client thread");
 				return;
 			}
 
+			//Load model and animation
 			Model model = client.loadModel(modelId, findColors, replaceColors);
-			if(model == null) continue;
 			Animation modelAnim = client.loadAnimation(animationId);
-				
-
-			for( WorldPoint localWP : lWorldPoints){
-				RuneLiteObject rlObj = client.createRuneLiteObject();
-				LocalPoint modelLocation = LocalPoint.fromWorld(client, localWP);
-				if(model == null){
-					final Instant loadTimeOutInstant = Instant.now().plus(Duration.ofSeconds((5)));
-					clientThread.invoke(() -> {
-						if(Instant.now().isAfter(loadTimeOutInstant)){
-							return true;
-						}
-						Model reloadedModel = client.loadModel(modelId, findColors, replaceColors);
-						Animation reloadedAnimation = null;
-						reloadedAnimation = client.loadAnimation(animationId);
-						if(reloadedAnimation == null){
-							return false;
-						}
-						if(reloadedModel == null){
-							return false;
-						}
-						rlObj.setModel(reloadedModel);
-						rlObj.setAnimation(reloadedAnimation);
-						rlObj.setShouldLoop(true);
+			if(model == null){
+				//Async load based on IdylRS Prop Hunt
+				final Instant loadTimeOutInstant = Instant.now().plus(Duration.ofSeconds((5)));
+				clientThread.invoke(() -> {
+					if(Instant.now().isAfter(loadTimeOutInstant)){
 						return true;
-					});
-				}else{
-					rlObj.setModel(model);
-					rlObj.setAnimation(modelAnim);
-					rlObj.setShouldLoop(true);
-				}
-	
-				if( modelLocation == null ){ 
-					log.debug("Failed to get local location");
-					continue;
-				}
-	
-				rlObj.setLocation(modelLocation, localWP.getPlane());
-				rlObj.setActive(true);
-				rlObj.setOrientation(marker.getOrientation());
-				
-				if(!objects.containsKey(marker)){
-					List<RuneLiteObject> newList = new ArrayList<>();
-					objects.put(marker, newList);
-				}
-				objects.get(marker).add(rlObj);
+					}
+					Model reloadedModel = client.loadModel(modelId, findColors, replaceColors);
+					Animation reloadedAnimation = null;
+					reloadedAnimation = client.loadAnimation(animationId);
+					if(reloadedAnimation == null || reloadedModel == null){
+						return false;
+					}
+					loadObjectInstances(reloadedModel, reloadedAnimation, lWorldPoints, marker);
+					return true;
+				});
+			}else{
+				loadObjectInstances(model, modelAnim, lWorldPoints, marker);
 			}
+			
 		}
 	}
 
+	void loadObjectInstances(Model model, Animation animation, Collection<WorldPoint> instancedWorldPoints, MarkerPoint marker){
+		if(!client.isClientThread()){
+			log.debug("Attempting to load data on non-client thread");
+			return;
+		}
+		for(WorldPoint point : instancedWorldPoints){
+			RuneLiteObject rlObj = client.createRuneLiteObject();
+			LocalPoint modelLocation = LocalPoint.fromWorld(client, point);
+			if( modelLocation == null ){ 
+				log.debug("Failed to get local location");
+				continue;
+			}
+			rlObj.setModel(model);
+			rlObj.setAnimation(animation);
+			rlObj.setShouldLoop(true);
+			rlObj.setLocation(modelLocation, point.getPlane());
+			rlObj.setActive(true);
+			rlObj.setOrientation(marker.getOrientation());
+			if(!objects.containsKey(marker)){
+				List<RuneLiteObject> newList = new ArrayList<>();
+				objects.put(marker, newList);
+			}
+			objects.get(marker).add(rlObj);
+		}
+	}
+
+	//Clear all objects/markers then reload
 	void loadMarkers(){
 		removeObjects();
 
@@ -479,6 +512,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 		
 	}
 
+	//Deactivate all rl objects then clear marker and object arrays
 	void removeObjects(){
 		Set<MarkerPoint> keys = objects.keySet();
 		for(MarkerPoint key : keys){
@@ -490,6 +524,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 		markers.clear();
 	}
 
+	//Set config for given region
 	void saveMarkers(int regionId, Collection<MarkerPoint> markers){
 		if(markers == null || markers.isEmpty()){
 			configManager.unsetConfiguration(CONFIG_GROUP, REGION_PREFIX + regionId);
@@ -499,6 +534,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 		configManager.setConfiguration(CONFIG_GROUP, REGION_PREFIX + regionId, json);
 	}
 
+	//Convert model and orientation of existing marker
 	private void remodelTile(MarkerPoint existing, MarkerOption newMarker, LocalPoint localPoint){
 		Collection<MarkerPoint> tempPoints = new ArrayList<>(getPoints(existing.getRegionID()));
 		var newPoint = new MarkerPoint(
@@ -517,6 +553,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 		loadMarkers();
 	}
 
+	//Setup a new marked tile
 	private void markTile(LocalPoint localPoint, MarkerOption markerInfo)
 	{	
 		if (localPoint == null)
@@ -530,6 +567,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 
 		List<MarkerPoint> tempPoints = new ArrayList<>(getPoints(regionId));
 
+		//Setup empty marker
 		if(markerInfo == null){
 			MarkerPoint point = new MarkerPoint(
 			regionId, 
@@ -571,17 +609,20 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 
 		tempPoints.add(point);
 
+		//Update saved markers
 		saveMarkers(regionId, tempPoints);
-
 		loadMarkers();
 	}
 
+	//Setup marker preview and enter state for placement
 	void startPlacingTile(MarkerOption newMarker){
 
+		//Don't start placing in menu
 		if (client.getGameState() != GameState.LOGGED_IN){
 			return;
 		}
 
+		//Get client thread to load the model as this is called from the panel
 		final Instant loadTimeOutInstant = Instant.now().plus(Duration.ofSeconds((5)));
 		clientThread.invoke(() -> {
 			if(Instant.now().isAfter(loadTimeOutInstant)){
@@ -609,16 +650,18 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 		});
 	}
 
+	//Get orientation value for placed tile
 	public int getOrientation(int orientationOffset, LocalPoint point){
 		int xDiff;
 		int yDiff;
 		double angle;
-		switch(config.markerOrientation()){
+		switch(getOrientationMethod()){
 			case EAST:
 				return (512 + orientationOffset) % 2048;
 			case FACE_AWAY_PLAYER:
 				xDiff = client.getLocalPlayer().getLocalLocation().getX() - point.getX();
 				yDiff = client.getLocalPlayer().getLocalLocation().getY() - point.getY();
+				//If on player, face oposite
 				if(xDiff == 0 && yDiff == 0){
 					return (client.getLocalPlayer().getOrientation() + orientationOffset) % 2048;
 				}
@@ -627,6 +670,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 			case FACE_PLAYER:
 				xDiff = client.getLocalPlayer().getLocalLocation().getX() - point.getX();
 				yDiff = client.getLocalPlayer().getLocalLocation().getY() - point.getY();
+				//If on player, match facing
 				if(xDiff == 0&& yDiff == 0){
 					return (client.getLocalPlayer().getOrientation() + orientationOffset + 1024) % 2048;
 				}
@@ -645,6 +689,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 			case WEST:
 				return (1536 + orientationOffset) % 2048;
 			default:
+				//Default return north
 				return orientationOffset;
 
 		}
@@ -652,6 +697,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 
 	@Subscribe
 	public void onPostMenuSort(PostMenuSort postMenuSort){
+		//Only change if the menu is not open
 		if (client.isMenuOpen())
 		{
 			return;
@@ -662,6 +708,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 			return;
 		}
 
+		//Filter for a tile that can be walkable
 		MenuEntry[] menuEntries = client.getMenuEntries();
 		boolean isWalkable = false;
 		for (MenuEntry menuEntry : menuEntries) {
@@ -681,7 +728,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 				.filter(p -> p.getRegionX() == worldPoint.getRegionX() && p.getRegionY() == worldPoint.getRegionY() && p.getZ() == worldPoint.getPlane())
 				.findFirst();
 
-			if(existingOpt.isPresent()){
+			if(existingOpt.isPresent()){//Replace current model and orientation
 				MarkerPoint existing = existingOpt.get();
 				client.createMenuEntry(-1)
 				.setOption("Redecorate")
@@ -694,7 +741,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 						stopPlacing();
 					}
 				});
-			}else{
+			}else{//Mark new tile
 				client.createMenuEntry(-1)
 				.setOption("Decorate")
 				.setTarget("Tile")
@@ -718,12 +765,13 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	public void onMenuEntryAdded(MenuEntryAdded event)
 	{
 		final boolean hotKeyPressed = client.isKeyPressed(KeyCode.KC_SHIFT);
-		if(event.getOption().equals(WALK_HERE) && (isPlacingTile || hotKeyPressed)){
+		if(event.getOption().equals(WALK_HERE) &&  hotKeyPressed){ //If holding shift while menu is generated
 			final Tile selectedSceneTile = client.getSelectedSceneTile();
 			if(selectedSceneTile == null){
 				return;
 			}
 
+			//Check for existing marker
 			final WorldPoint worldPoint = WorldPoint.fromLocalInstance(client, selectedSceneTile.getLocalLocation());
 			final int regionID = worldPoint.getRegionID();
 			var regionPoints = getPoints(regionID);
@@ -731,7 +779,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 				.filter(p -> p.getRegionX() == worldPoint.getRegionX() && p.getRegionY() == worldPoint.getRegionY() && p.getZ() == worldPoint.getPlane())
 				.findFirst();
 				
-			if (hotKeyPressed && existingOpt.isPresent()){
+			if (existingOpt.isPresent()){
 
 				client.createMenuEntry(-1)
 				.setOption("Remove Prop From")
