@@ -129,6 +129,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	private static final String CONFIG_GROUP = "immersiveGroundMarkers";
 	private static final String REGION_PREFIX = "imregion_";
 	private static final String WALK_HERE = "Walk here";
+	private static final String SET_HEADING = "Set heading";
 	private static final String ORIENTATION_CONFIG = "markerOrientation";
 
 	private final List<MarkerPoint> markers = new ArrayList<>();
@@ -715,7 +716,8 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 		MenuEntry[] menuEntries = client.getMenuEntries();
 		boolean isWalkable = false;
 		for (MenuEntry menuEntry : menuEntries) {
-			if(menuEntry.getOption().equals(WALK_HERE)){
+			String opt = menuEntry.getOption();
+			if(opt.equals(WALK_HERE) || opt.equals(SET_HEADING)){
 				isWalkable = true;
 				break;
 			}
@@ -768,7 +770,8 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	public void onMenuEntryAdded(MenuEntryAdded event)
 	{
 		final boolean hotKeyPressed = client.isKeyPressed(KeyCode.KC_SHIFT);
-		if(event.getOption().equals(WALK_HERE) &&  hotKeyPressed){ //If holding shift while menu is generated
+		boolean isWalkable = event.getOption().equals(WALK_HERE) || event.getOption().equals(SET_HEADING);
+		if(isWalkable &&  hotKeyPressed){ //If holding shift while menu is generated
 			final Tile selectedSceneTile = client.getSelectedSceneTile();
 			if(selectedSceneTile == null){
 				return;
