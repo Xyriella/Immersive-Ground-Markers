@@ -6,19 +6,27 @@ import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.util.ImageUtil;
 
 import java.awt.event.KeyEvent;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
+import java.awt.RenderingHints.Key;
 import java.awt.image.BufferedImage;
+import java.security.AlgorithmConstraints;
 
+import javax.swing.BoxLayout;
 import javax.swing.ButtonGroup;
 import javax.swing.GroupLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JSpinner;
+import javax.swing.SpinnerModel;
+import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingConstants;
+import javax.swing.GroupLayout.Alignment;
 import javax.swing.border.EmptyBorder;
 
 import com.ImmersiveGroundMarkers.ImmersiveGroundMarkersConfig.OrientationMethod;
@@ -29,7 +37,13 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
 
     private final ImmersiveGroundMarkersPlugin plugin;
 
+    private JPanel titlePanel;
+
     private JLabel panelTitle;
+    private JLabel helpComponent;
+
+    private JPanel customPropPanel;
+    private JSpinner idSelectSpinner;
 
     private final JPanel orientationButtonPanel;
     private final ButtonGroup orientationSelectionGroup;
@@ -84,8 +98,55 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
         importMarkersButton.setToolTipText("Import markers from clipboard.\nWill check for confirmation.");
         importMarkersButton.addActionListener(l -> plugin.promptForImport());
 
+        titlePanel = new JPanel();
+        titlePanel.setLayout(new GridBagLayout());
+        GridBagConstraints helpConstraints = new GridBagConstraints();
+        GridBagConstraints titleAConstraints = new GridBagConstraints();
+
+        try {
+            BufferedImage helpIcon = ImageUtil.loadImageResource(getClass(), "help.png");
+            helpComponent = new JLabel(new ImageIcon(helpIcon));
+        } catch (Exception e) {
+            helpComponent = new JLabel("Help");
+        }
+        helpComponent.setSize(10, 10);
+        helpComponent.setToolTipText("- Select a prop from below, then left click in the world to place it.\n- Hold Left Shift while placing to continue placing.\n- Press Escape to cancel placement.\n- Shift + Right Click on a tile with a prop to remove it.");
+        helpConstraints.anchor = GridBagConstraints.LINE_END;
+        helpConstraints.gridx = 2;
+        helpConstraints.gridy = 0;
+        helpConstraints.gridwidth = 3;
+        helpConstraints.gridheight = 1;
+        helpConstraints.weightx = 1.0;
+        helpConstraints.weighty = 1.0;
+        helpConstraints.ipadx = 8;
+        helpConstraints.ipady = 4;
+
         //Orientation Selection
         panelTitle = new JLabel("Orientation");
+        titleAConstraints.anchor = GridBagConstraints.CENTER;
+        titleAConstraints.gridx = 1;
+        titleAConstraints.gridy = 0;
+        titleAConstraints.gridwidth = 3;
+        titleAConstraints.gridheight = 1;
+        titleAConstraints.weightx = 1.0;
+        titleAConstraints.weighty = 1.0;
+
+        titlePanel.add(panelTitle, titleAConstraints);
+        titlePanel.add(helpComponent, helpConstraints);
+        
+        //Custom Prop Panel
+        /*customPropPanel = new JPanel();
+        JButton placeCustomButton = new JButton("Place");
+        placeCustomButton.addKeyListener(this);
+        placeCustomButton.addActionListener(l -> {
+            placeCustomProp();
+        });
+
+        SpinnerModel idSelectModel = new SpinnerNumberModel(0, 0, 100000, 1);
+        idSelectSpinner = new JSpinner(idSelectModel);
+        
+        customPropPanel.add(idSelectSpinner);
+        customPropPanel.add(placeCustomButton);*/
 
         orientationButtonPanel = new JPanel();
         GroupLayout orientationLayout = new GroupLayout(orientationButtonPanel);
@@ -230,8 +291,9 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
             .addComponent(importMarkersButton)
             .addComponent(clearMarkersButton)
         )
-        .addComponent(panelTitle)
+        .addComponent(titlePanel)
         .addComponent(orientationButtonPanel)
+        //.addComponent(customPropPanel)
         .addComponent(groupControlPanel)
         .addComponent(propButtonsPanel)
         );
@@ -242,8 +304,9 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
             .addComponent(importMarkersButton)
             .addComponent(clearMarkersButton)
         )
-        .addComponent(panelTitle)
+        .addComponent(titlePanel)
         .addComponent(orientationButtonPanel)
+        //.addComponent(customPropPanel)
         .addComponent(groupControlPanel)
         .addComponent(propButtonsPanel)
         );
@@ -265,6 +328,7 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
     public void keyTyped(KeyEvent e){
 
     }
+
     @Override
     public void keyReleased(KeyEvent e){
         if(e.getKeyCode() == KeyEvent.VK_ESCAPE){
@@ -273,6 +337,14 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
         if(e.getKeyCode() == KeyEvent.VK_SHIFT){
             plugin.setShiftPressed(false);
         }
+        /*if(e.getKeyCode() == KeyEvent.VK_ADD){
+            idSelectSpinner.setValue(idSelectSpinner.getNextValue());
+            placeCustomProp();
+        }
+        if(e.getKeyCode() == KeyEvent.VK_SUBTRACT){
+            idSelectSpinner.setValue(idSelectSpinner.getPreviousValue());
+            placeCustomProp();
+        }*/
     }
 
     void setupOrientationButton(JButton button, OrientationMethod direction, String tooltip){
@@ -317,6 +389,10 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
                 break;
 
         }
+    }
+
+    void placeCustomProp(){
+        plugin.startPlacingTile(new MarkerOption("", (int)idSelectSpinner.getValue()));
     }
 
     void generatePropButtons(){

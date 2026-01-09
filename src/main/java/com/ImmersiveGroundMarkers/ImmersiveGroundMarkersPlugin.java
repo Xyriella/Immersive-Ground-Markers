@@ -340,7 +340,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 			if( getOrientationMethod() != OrientationMethod.RANDOM){
 				placingObject.setOrientation(getOrientation(markerToPlace.orientationOffset, hoveredTile.getLocalLocation()));
 			}else{
-				placingObject.setOrientation(placingObject.getOrientation() + 10);
+				placingObject.setOrientation((placingObject.getOrientation() + 10) % 2048);
 			}
 		}
 		
@@ -633,6 +633,9 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 				model = client.loadModel(newMarker.modelID);
 			}else{
 				model = client.loadModel(newMarker.modelID, newMarker.colorsToFind, newMarker.colorsToReplace);
+			}
+			if (placingObject != null){
+				placingObject.setActive(false);
 			}
 			placingObject = client.createRuneLiteObject();
 			LocalPoint modelLocation = client.getLocalPlayer().getLocalLocation();
