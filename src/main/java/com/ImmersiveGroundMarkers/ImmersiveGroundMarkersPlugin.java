@@ -73,6 +73,9 @@ import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.api.events.PostMenuSort;
+import net.runelite.api.WorldView;
+import net.runelite.api.GroundObject;
+import net.runelite.api.ModelData;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.chat.ChatMessageManager;
 import net.runelite.client.chat.QueuedMessage;
@@ -118,6 +121,8 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 
 	private int lastPlane = -1;
 
+	private int heightThreshold = 32;
+
 	private MarkerOption markerToPlace = null;
 
 	private boolean isPlacingTile = false;
@@ -131,6 +136,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 	private static final String WALK_HERE = "Walk here";
 	private static final String SET_HEADING = "Set heading";
 	private static final String ORIENTATION_CONFIG = "markerOrientation";
+	private static final String OFFSET_CONFIG = "heightThreshold";
 
 	private final List<MarkerPoint> markers = new ArrayList<>();
 	private final Map<MarkerPoint, List<RuneLiteObject>> objects = new LinkedHashMap<>();
@@ -337,6 +343,9 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 		//Update location and orientation of marker preview
 		if(isPlacingTile && placingObject != null){
 			final Tile hoveredTile = client.getSelectedSceneTile();
+			if (hoveredTile == null){
+				return;
+			} 
 			placingObject.setLocation(hoveredTile.getLocalLocation(), hoveredTile.getPlane());
 			if( getOrientationMethod() != OrientationMethod.RANDOM){
 				placingObject.setOrientation(getOrientation(markerToPlace.orientationOffset, hoveredTile.getLocalLocation()));
@@ -400,6 +409,13 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 			} catch(NullPointerException e){
 				log.debug("Config value was null");
 			}
+		}else if (event.getGroup().equals(CONFIG_GROUP) && event.getKey().equals(OFFSET_CONFIG)) {
+			try{
+				heightThreshold = Integer.parseInt(event.getNewValue());
+			}catch(NumberFormatException e){
+				heightThreshold = 32;
+			}
+			loadMarkers();
 		}else{
 			return;
 		}
@@ -422,13 +438,40 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 		return gson.fromJson(json, new TypeToken<List<MarkerPoint>>(){}.getType());
 	}
 	
+	int getTileGroundObjectHeight(Tile t){
+		if(t != null){
+			GroundObject grObj = t.getGroundObject();
+			if(grObj != null){
+				int h = grObj.getRenderable().getModelHeight();
+
+				return h >= heightThreshold ? 1 : h + 1;
+			}
+		}
+		return 1;
+	}
+
 	//Create and setup runelite objects
 	void loadObjects(Collection<MarkerPoint> points){
+		WorldView wv = client.getTopLevelWorldView();
+		Tile[][][] tiles = wv.getScene().getTiles();
+		int blx = wv.getScene().getBaseX();
+		int bly = wv.getScene().getBaseY();
 		for(MarkerPoint marker : points){
 
 			//Load world point then find all instances of that in loaded regions
 			WorldPoint wp = WorldPoint.fromRegion(marker.getRegionID(), marker.getRegionX(), marker.getRegionY(), marker.getZ());
-			Collection<WorldPoint> lWorldPoints = WorldPoint.toLocalInstance(client, wp);
+			Collection<WorldPoint> lWorldPoints = WorldPoint.toLocalInstance(wv, wp);
+
+			WorldPoint cwpt = lWorldPoints.iterator().next();
+			cwpt = cwpt.dx(-blx);
+			cwpt = cwpt.dy(-bly);
+			int x = cwpt.getX();
+			int y = cwpt.getY();
+			int pl = cwpt.getPlane();
+
+			Tile t = tiles[pl][x][y];
+
+			int height = getTileGroundObjectHeight(t);
 
 			//Getting shorter variable names than getters
 			int modelId = marker.getModelId();
@@ -443,26 +486,41 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 			}
 
 			//Load model and animation
-			Model model = client.loadModel(modelId, findColors, replaceColors);
+			//Model model = client.loadModel(modelId, findColors, replaceColors);
+			ModelData md = client.loadModelData(modelId);
 			Animation modelAnim = client.loadAnimation(animationId);
-			if(model == null){
+			if(md == null){
 				//Async load based on IdylRS Prop Hunt
 				final Instant loadTimeOutInstant = Instant.now().plus(Duration.ofSeconds((5)));
 				clientThread.invoke(() -> {
 					if(Instant.now().isAfter(loadTimeOutInstant)){
 						return true;
 					}
-					Model reloadedModel = client.loadModel(modelId, findColors, replaceColors);
+					ModelData reloadedModel = client.loadModelData(modelId);
 					Animation reloadedAnimation = null;
 					reloadedAnimation = client.loadAnimation(animationId);
 					if(reloadedAnimation == null || reloadedModel == null){
 						return false;
 					}
-					loadObjectInstances(reloadedModel, reloadedAnimation, lWorldPoints, marker);
+					reloadedModel.cloneVertices();
+					reloadedModel.translate(0,-height,0);
+					if( findColors != null ){
+						for( int i = 0; i < findColors.length; i++){
+							reloadedModel.recolor(findColors[i], replaceColors[i]);
+						}
+					}
+					loadObjectInstances(reloadedModel.light(), reloadedAnimation, lWorldPoints, marker);
 					return true;
 				});
 			}else{
-				loadObjectInstances(model, modelAnim, lWorldPoints, marker);
+				md.cloneVertices();
+				md.translate(0,-height,0);
+				if(findColors != null){
+					for( int i = 0; i < findColors.length; i++){
+						md.recolor(findColors[i], replaceColors[i]);
+					}
+				}
+				loadObjectInstances(md.light(), modelAnim, lWorldPoints, marker);
 			}
 			
 		}
@@ -480,6 +538,7 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 				log.debug("Failed to get local location");
 				continue;
 			}
+			
 			rlObj.setModel(model);
 			rlObj.setAnimation(animation);
 			rlObj.setShouldLoop(true);

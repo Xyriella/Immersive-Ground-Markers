@@ -1,6 +1,88 @@
 https://runemonk.com/tools/entityviewer-beta
 
-40042/40093/9991 - Books
+40042/40093/9991/30477/35420 - Books
 40049/40086 - Flower
 40065 - Flat Shadow
 40068/40074 - Bricks
+
+30254 - Piscarillius Boardwalk Tile
+30320 - Pisc Driftwood
+30464 - Papers
+30563 - Arceus Tile
+30682 - Cyan crystal
+30683 - Red Crystal
+30849 - Dark Broken Tile
+30965 - Anglerfish
+31403 - MM2 Pressure pad
+30961 - 3a axe
+30962 - 3a pick
+32109 - Full Fairy RIng
+32456 - Twisted Crystal
+32456 - Kodai Crystal
+32473 - Elder Crystal
+32569 - COX Tile
+33002-33004 - Inferno Bloblets (Find Anim)
+33634 - Pagoda Fungus
+33636 - Pale Shrroms
+33638 - Red Star FUngus
+33648 - Blue Shrooms
+33839 - Seaweed Pile
+34615 - Floating Plank
+34692 - DS2 Tile
+34712 - Lithkren Bricks
+35394-35396 - TOB Ground Effects
+35553 - Bloat Hand
+35625-35628 - Sote Maze Tiles
+35784-35814 - Map Symbols
+36010/36011 - Quest + Minigame
+36297 - PURPLE QUEST?
+35869 - Neutral Dark Grey Tile
+36359 - Shaman Temple TIle
+36464 - Farming GUild Door
+36512 - Sulfur Debris
+36956 - Hydra Heads
+37143 - Purple Sweet
+37268 - Volcanic Rock
+37630 - Prif Tile (Look earlier for CG + G Tiles)
+37848 - Elven Crystals
+37888 - Priff Crystal Grass
+38337 - SOTE Library Tile
+38602 - KNIFE CRAB (anim 8461?)
+38992 - Xeric Home Tele Ring
+39200 - Nightmare Flowers
+39285 - Vampire Daisies
+39385 - Nightmare Tiles
+39884 - Sepulchre Tile
+40205 - Sepulchre Blank Star
+40297/40539 - Vampire Bricks
+40720 - Vmpire FLowers
+41546 - Mage Thrall
+41549 - Range Thrall
+41556 - Melee Thrall
+41653 - Gnome Child
+42048/42049 - Camdozaal Tile
+42528 - Lovakenj rock
+43032 - Loot Beam
+        "recolorToFind": [
+            2643`2,
+            26584
+        ],
+        "recolorToReplace": [
+            832,
+            984
+        ]
+43372 - Shattered Relics Lock
+43596 - Tiny Tiles
+~44100 - GOTR Talismans
+44694/44701 - Dark Lilypads
+44696 - Pampas/Papyrus
+45325 - Red Glow Tile Border
+45762 - TOA Mirror Base Tile
+45799 - TOA Blank Puzzle Tile (Surrounded by Marker Ones)
+45846 - TOA Tile
+46914 - Untitled Goose (White Duck)
+47366 - Red Bear Trap
+48149 - Pride Flowers
+49899 - Fox Trap
+
+stopped at 50,000

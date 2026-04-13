@@ -29,4 +29,12 @@ public interface ImmersiveGroundMarkersConfig extends Config
 		return OrientationMethod.RANDOM;
 	}
 
+	@ConfigItem(
+		keyName = "heightThreshold",
+		name = "Scenery Offset",
+		description = "How high can tiles be lifted to display over ground objects"
+	)
+	default int heightThreshold(){
+		return 32;
+	}
 }
