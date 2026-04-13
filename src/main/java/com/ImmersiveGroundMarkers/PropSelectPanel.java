@@ -362,16 +362,17 @@ public class PropSelectPanel extends PluginPanel implements KeyListener{
         URI uri;
         try{
             uri = new URI(url);
-        }catch (Exception e){
-            return;
-        }
-        if(dt != null && dt.isSupported(Desktop.Action.BROWSE)){
-            try{
-                dt.browse(uri);
-            }catch (Exception e){
-                e.printStackTrace();
+            if(dt != null && dt.isSupported(Desktop.Action.BROWSE)){
+                try{
+                    dt.browse(uri);
+                }catch (Exception e){
+                    
+                }
             }
+        }catch (Exception e){
+            
         }
+        
     }
 
     @Override
