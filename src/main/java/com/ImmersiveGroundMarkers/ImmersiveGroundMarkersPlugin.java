@@ -444,14 +444,21 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 			if(grObj != null){
 				int h = grObj.getRenderable().getModelHeight();
 
-				return h >= heightThreshold ? 1 : h + 1;
+				return h >= heightThreshold ? 5 : h + 1;
 			}
 		}
-		return 1;
+		return 5;
 	}
 
 	//Create and setup runelite objects
 	void loadObjects(Collection<MarkerPoint> points){
+
+		//Prevent crashes when trying to run client functions not on client thread
+		if( !client.isClientThread() ){
+			log.debug("Not on client thread");
+			return;
+		}
+
 		WorldView wv = client.getTopLevelWorldView();
 		Tile[][][] tiles = wv.getScene().getTiles();
 		int blx = wv.getScene().getBaseX();
@@ -461,17 +468,21 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 			//Load world point then find all instances of that in loaded regions
 			WorldPoint wp = WorldPoint.fromRegion(marker.getRegionID(), marker.getRegionX(), marker.getRegionY(), marker.getZ());
 			Collection<WorldPoint> lWorldPoints = WorldPoint.toLocalInstance(wv, wp);
+			
+			
+			Tile t = null;
+			if (lWorldPoints.iterator().hasNext()){
+				WorldPoint cwpt = lWorldPoints.iterator().next();
 
-			WorldPoint cwpt = lWorldPoints.iterator().next();
-			cwpt = cwpt.dx(-blx);
-			cwpt = cwpt.dy(-bly);
-			int x = cwpt.getX();
-			int y = cwpt.getY();
-			int pl = cwpt.getPlane();
+				cwpt = cwpt.dx(-blx);
+				cwpt = cwpt.dy(-bly);
+				int x = cwpt.getX();
+				int y = cwpt.getY();
+				int pl = cwpt.getPlane();
 
-			Tile t = tiles[pl][x][y];
-
-			int height = getTileGroundObjectHeight(t);
+				t = tiles[pl][x][y];
+			}
+			final int height = getTileGroundObjectHeight(t);
 
 			//Getting shorter variable names than getters
 			int modelId = marker.getModelId();
@@ -479,17 +490,12 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 			short[] findColors = marker.getColorsToFind();
 			short[] replaceColors = marker.getColorsToReplace();
 
-			//Prevent crashes when trying to load models off client thread
-			if( !client.isClientThread() ){
-				log.debug("Not on client thread");
-				return;
-			}
 
 			//Load model and animation
 			//Model model = client.loadModel(modelId, findColors, replaceColors);
-			ModelData md = client.loadModelData(modelId);
+			ModelData model = client.loadModelData(modelId);
 			Animation modelAnim = client.loadAnimation(animationId);
-			if(md == null){
+			if(model == null){
 				//Async load based on IdylRS Prop Hunt
 				final Instant loadTimeOutInstant = Instant.now().plus(Duration.ofSeconds((5)));
 				clientThread.invoke(() -> {
@@ -513,14 +519,14 @@ public class ImmersiveGroundMarkersPlugin extends Plugin
 					return true;
 				});
 			}else{
-				md.cloneVertices();
-				md.translate(0,-height,0);
+				model.cloneVertices();
+				model.translate(0,-height,0);
 				if(findColors != null){
 					for( int i = 0; i < findColors.length; i++){
-						md.recolor(findColors[i], replaceColors[i]);
+						model.recolor(findColors[i], replaceColors[i]);
 					}
 				}
-				loadObjectInstances(md.light(), modelAnim, lWorldPoints, marker);
+				loadObjectInstances(model.light(), modelAnim, lWorldPoints, marker);
 			}
 			
 		}
